@@ -1,12 +1,8 @@
-FROM rust:1.97-alpine3.23 AS build
-
+FROM rust:1.97-alpine3.23
 WORKDIR /app
 
+RUN cargo install cargo-watch
+
 COPY . .
-RUN cargo build
 
-FROM alpine:3.23
-
-COPY --from=build /app/target/debug/music-catalog .
-
-CMD ["./music-catalog"]
+CMD ["cargo", "watch", "-x", "run"]
