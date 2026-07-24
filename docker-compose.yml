@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: my-postgres-pass
-      POSTGRES_DB: identity-db
+      POSTGRES_DB: music-catalog-db
     healthcheck:
       interval: 10s
       retries: 3

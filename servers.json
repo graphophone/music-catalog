@@ -1,0 +1,15 @@
+{
+    "Servers": {
+        "1": {
+            "Group": "Servers",
+            "Name": "music-catalog",
+            "Host": "postgres",
+            "Port": 5432,
+            "MaintenanceDB": "music-catalog-db",
+            "Username": "user",
+            "Password": "my-postgres-pass",
+            "SSLMode": "prefer",
+            "Favorite": true
+        }
+    }
+}
