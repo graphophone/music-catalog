@@ -1,14 +1,12 @@
-FROM rust:1.97-alpine3.23
+FROM rust:1.97-alpine3.23 AS build
 
 WORKDIR /app
 
-COPY Cargo.lock Cargo.toml .
-RUN mkdir src
-RUN echo "fn main() {}" > src/main.rs
-RUN cargo build
-RUN rm -rf src
-
-COPY src ./src
+COPY . .
 RUN cargo build
 
-CMD ["./target/debug/music-catalog"]
+FROM alpine:3.23
+
+COPY --from=build /app/target/debug/music-catalog .
+
+CMD ["./music-catalog"]
