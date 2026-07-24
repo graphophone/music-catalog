@@ -1,2 +1,5 @@
 services:
-  
+  music-catalog-svc:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
