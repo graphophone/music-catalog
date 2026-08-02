@@ -1,7 +1,7 @@
-use music_catalog::app_config;
+use std::error::Error;
 
-fn main() {
-    let conf = app_config::AppConfig::build("config/config.local.toml")
-        .expect("failed to read config");
-    dbg!(conf);
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
+    music_catalog::run("config/config.local.toml").await?;
+    Ok(())
 }
