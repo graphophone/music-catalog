@@ -1,4 +1,4 @@
-use sqlx::prelude::FromRow;
+use sqlx::{Row, prelude::FromRow};
 
 pub struct TracksDb {
     pool: sqlx::postgres::PgPool,
@@ -43,12 +43,41 @@ impl TracksDb {
                 play_count,
                 T.user_id;
         ";
-        let query = sqlx::query_as::<_, FullTrackInfo>(query)
-            .bind(track_id);
-        let res = query.fetch_optional(&self.pool).await?;
-        Ok(res)
-    }
+        let mut tx = self.pool.begin().await?;
+        let track_info = sqlx::query(query)
+            .bind(track_id)
+            .fetch_optional(&mut *tx)
+            .await?;
+        let track_info = match track_info {
+            Some(track_info) => track_info,
+            None => return Ok(None),
+        };
 
+        let query = r"
+            SELECT C.id, C.name
+            FROM categories C
+            JOIN tracks_categories TC
+            ON C.id = TC.category_id
+            WHERE TC.track_id = $1
+        ";
+        let track_categories: Vec<CategoryInfo> = sqlx::query_as::<_, CategoryInfo>(query)
+            .bind(track_id)
+            .fetch_all(&mut *tx)
+            .await?;
+        let res = FullTrackInfo {
+            id: track_info.try_get("id")?,
+            name: track_info.try_get("name")?,
+            description: track_info.try_get("description")?,
+            thumbnail_url: track_info.try_get("thumbnail_url")?,
+            duration_seconds: track_info.try_get("duration_seconds")?,
+            play_count: track_info.try_get("play_count")?,
+            like_count: track_info.try_get("like_count")?,
+            user_id: track_info.try_get("user_id")?,
+            categories: track_categories,
+        };
+        tx.commit().await?;
+        Ok(Some(res))
+    }
     pub async fn get_short_track_info(&self, track_id: i32) -> Result<Option<ShortTrackInfo>, sqlx::Error> {
         let query = r"
             SELECT
@@ -151,7 +180,7 @@ impl TracksDb {
     }
 }
 
-#[derive(FromRow, Debug)]
+#[derive(Debug)]
 pub struct FullTrackInfo {
     pub id: i32,
     pub name: String,
@@ -161,7 +190,7 @@ pub struct FullTrackInfo {
     pub play_count: i64,
     pub like_count: i64,
     pub user_id: i32,
-    // pub categories: Vec<String>,
+    pub categories: Vec<CategoryInfo>,
 }
 
 #[derive(FromRow, Debug)]
@@ -183,7 +212,13 @@ pub struct UploadTrackInfo {
 pub struct UpdateTrackInfo {
     pub name: String,
     pub description: Option<String>,
-    // pub category_ids: Vec<i32>,
+    pub category_ids: Vec<i32>,
+}
+
+#[derive(FromRow, Debug)]
+pub struct CategoryInfo {
+    pub id: i32,
+    pub name: String,
 }
 
 pub struct LinkAudioInfo {
