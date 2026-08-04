@@ -4,10 +4,81 @@ package music_catalog;
 service MusicCatalogService {
     rpc GetFullTrackInfo(GetTrackInfoRequest) returns (FullTrackInfo)
     rpc GetShortTrackInfo(GetTrackInfoRequest) returns (ShortTrackInfo)
-    rpc UploadTrackInfo(UploadTrackInfoRequest) returns (TrackId)
+    rpc UploadTrackInfo(UploadTrackInfoRequest) returns (UploadTrackInfoResponse)
     rpc UpdateTrackInfo(UpdateTrackInfoRequest) returns (Empty)
     rpc UpdateTrackThumbnail(UpdateTrackThumbnailRequest) returns (Empty)
     rpc RemoveTrackInfo(RemoveTrackInfoRequest) returns (Empty)
     rpc LinkTrackInfo(LinkTrackInfoRequest) returns (Empty)
-    rpc GeneratePlayToken(GeneratePlayTokenRequest) returns (Empty)
+    rpc GeneratePlayToken(GeneratePlayTokenRequest) returns (PlayToken)
+}
+
+message Empty {}
+
+message GetTrackInfoRequest {
+    uint32 track_id = 1;
+}
+
+message UploadTrackInfoRequest {
+    string name = 1;
+    optional string description = 2;
+    uint32 user_id = 3;
+}
+
+message UpdateTrackInfoRequest {
+    uint32 track_id = 1;
+    string name = 2;
+    optional string description = 3;
+}
+
+message UpdateTrackThumbnailRequest {
+    uint32 track_id = 1;
+    optional bytes thumbnail = 2;
+}
+
+message RemoveTrackInfoRequest {
+    uint32 track_id = 1;
+}
+
+message LinkTrackInfoRequest {
+    uint32 track_id = 1;
+    string audio_uri = 2;
+    uint16 duration_seconds = 3;
+}
+
+message GeneratePlayTokenRequest {
+    uint32 track_id = 1;
+}
+
+message FullTrackInfo {
+    uint32 id = 1;
+    string name = 2;
+    optional string description = 3;
+    optional string thumbnail_url = 4;
+    uint16 duration_seconds = 5;
+    uint32 play_count = 6;
+    uint32 like_count = 7;
+    uint32 user_id = 8;
+    repeated CategoryInfo categories = 9;
+}
+
+message ShortTrackInfo {
+    uint32 id = 1;
+    string name = 2;
+    optional string thumbnail_url = 3;
+    uint16 duration_seconds = 4;
+    uint32 play_count = 5;
+    uint32 user_id = 6;
+}
+
+message UploadTrackInfoResponse {
+    uint32 track_id = 1;
+}
+
+message PlayToken {
+    string play_token = 1;
+}
+
+message CategoryInfo {
+    uint32 id = 1;
+    string name = 2;
 }
