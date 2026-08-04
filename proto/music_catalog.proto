@@ -1,0 +1,13 @@
+syntax = "proto3"
+package music_catalog;
+
+service MusicCatalogService {
+    rpc GetFullTrackInfo(GetTrackInfoRequest) returns (FullTrackInfo)
+    rpc GetShortTrackInfo(GetTrackInfoRequest) returns (ShortTrackInfo)
+    rpc UploadTrackInfo(UploadTrackInfoRequest) returns (TrackId)
+    rpc UpdateTrackInfo(UpdateTrackInfoRequest) returns (Empty)
+    rpc UpdateTrackThumbnail(UpdateTrackThumbnailRequest) returns (Empty)
+    rpc RemoveTrackInfo(RemoveTrackInfoRequest) returns (Empty)
+    rpc LinkTrackInfo(LinkTrackInfoRequest) returns (Empty)
+    rpc GeneratePlayToken(GeneratePlayTokenRequest) returns (Empty)
+}
