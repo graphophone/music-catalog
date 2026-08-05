@@ -1,15 +1,16 @@
-syntax = "proto3"
+syntax = "proto3";
+
 package music_catalog;
 
 service MusicCatalogService {
-    rpc GetFullTrackInfo(GetTrackInfoRequest) returns (FullTrackInfo)
-    rpc GetShortTrackInfo(GetTrackInfoRequest) returns (ShortTrackInfo)
-    rpc UploadTrackInfo(UploadTrackInfoRequest) returns (UploadTrackInfoResponse)
-    rpc UpdateTrackInfo(UpdateTrackInfoRequest) returns (Empty)
-    rpc UpdateTrackThumbnail(UpdateTrackThumbnailRequest) returns (Empty)
-    rpc RemoveTrackInfo(RemoveTrackInfoRequest) returns (Empty)
-    rpc LinkTrackInfo(LinkTrackInfoRequest) returns (Empty)
-    rpc GeneratePlayToken(GeneratePlayTokenRequest) returns (PlayToken)
+    rpc GetFullTrackInfo(GetTrackInfoRequest) returns (FullTrackInfo);
+    rpc GetShortTrackInfo(GetTrackInfoRequest) returns (ShortTrackInfo);
+    rpc UploadTrackInfo(UploadTrackInfoRequest) returns (UploadTrackInfoResponse);
+    rpc UpdateTrackInfo(UpdateTrackInfoRequest) returns (Empty);
+    rpc UpdateTrackThumbnail(UpdateTrackThumbnailRequest) returns (Empty);
+    rpc RemoveTrackInfo(RemoveTrackInfoRequest) returns (Empty);
+    rpc LinkTrackInfo(LinkTrackInfoRequest) returns (Empty);
+    rpc GeneratePlayToken(GeneratePlayTokenRequest) returns (PlayToken);
 }
 
 message Empty {}
@@ -42,7 +43,7 @@ message RemoveTrackInfoRequest {
 message LinkTrackInfoRequest {
     uint32 track_id = 1;
     string audio_uri = 2;
-    uint16 duration_seconds = 3;
+    uint32 duration_seconds = 3;
 }
 
 message GeneratePlayTokenRequest {
@@ -54,7 +55,7 @@ message FullTrackInfo {
     string name = 2;
     optional string description = 3;
     optional string thumbnail_url = 4;
-    uint16 duration_seconds = 5;
+    uint32 duration_seconds = 5;
     uint32 play_count = 6;
     uint32 like_count = 7;
     uint32 user_id = 8;
@@ -65,7 +66,7 @@ message ShortTrackInfo {
     uint32 id = 1;
     string name = 2;
     optional string thumbnail_url = 3;
-    uint16 duration_seconds = 4;
+    uint32 duration_seconds = 4;
     uint32 play_count = 5;
     uint32 user_id = 6;
 }
