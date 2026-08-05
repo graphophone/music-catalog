@@ -72,7 +72,7 @@ message ShortTrackInfo {
 }
 
 message UploadTrackInfoResponse {
-    int64 track_id = 1;
+    int64 id = 1;
 }
 
 message PlayToken {

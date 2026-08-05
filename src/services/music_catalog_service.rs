@@ -79,4 +79,22 @@ impl MusicCatalog for MusicCatalogService {
 
         Ok(Response::from(res))
     }
+
+    async fn upload_track_info(&self, req: Request<UploadTrackInfoRequest>) -> Result<Response<UploadTrackInfoResponse>, Status> {
+        let req = req.into_inner();
+
+        let track_info = database::tracks::UploadTrackInfo {
+            name: req.name,
+            description: req.description,
+            user_id: req.user_id,
+        };
+        let query_res = self.track_db
+            .save_track_info(&track_info)
+            .await;
+
+        match query_res {
+            Ok(id) => Ok(Response::from(UploadTrackInfoResponse { id })),
+            Err(e) => Err(Status::from_error(Box::new(e))),
+        }
+    }
 }
