@@ -30,26 +30,23 @@ impl MusicCatalog for MusicCatalogService {
 
         let track_info = match query_res {
             Ok(v) => v,
+            Err(sqlx::Error::RowNotFound) => return Err(Status::not_found("track not found")),
             Err(e) => return Err(Status::from_error(Box::new(e))),
         };
 
-        let res = match track_info {
-            Some(info) => FullTrackInfo {
-                id: info.id,
-                name: info.name,
-                description: info.description,
-                thumbnail_url: info.thumbnail_url,
-                duration_seconds: info.duration_seconds,
-                play_count: info.play_count,
-                like_count: info.like_count,
-                user_id: info.user_id,
-                categories: info.categories.into_iter()
-                    .map(|c| CategoryInfo { id: c.id, name: c.name })
-                    .collect(),
-            },
-            None => return Err(Status::not_found("track info not found")),
+        let res = FullTrackInfo {
+            id: track_info.id,
+            name: track_info.name,
+            description: track_info.description,
+            thumbnail_url: track_info.thumbnail_url,
+            duration_seconds: track_info.duration_seconds,
+            play_count: track_info.play_count,
+            like_count: track_info.like_count,
+            user_id: track_info.user_id,
+            categories: track_info.categories.into_iter()
+                .map(|c| CategoryInfo { id: c.id, name: c.name })
+                .collect(),
         };
-
         Ok(Response::from(res))
     }
 
@@ -62,21 +59,18 @@ impl MusicCatalog for MusicCatalogService {
 
         let track_info = match query_res {
             Ok(v) => v,
+            Err(sqlx::Error::RowNotFound) => return Err(Status::not_found("track not found")),
             Err(e) => return Err(Status::from_error(Box::new(e))),
         };
 
-        let res = match track_info {
-            Some(info) => ShortTrackInfo {
-                id: info.id,
-                name: info.name,
-                thumbnail_url: info.thumbnail_url,
-                duration_seconds: info.duration_seconds,
-                play_count: info.play_count,
-                user_id: info.user_id,
-            },
-            None => return Err(Status::not_found("track info not found")),
+        let res = ShortTrackInfo {
+            id: track_info.id,
+            name: track_info.name,
+            thumbnail_url: track_info.thumbnail_url,
+            duration_seconds: track_info.duration_seconds,
+            play_count: track_info.play_count,
+            user_id: track_info.user_id,
         };
-
         Ok(Response::from(res))
     }
 
@@ -161,5 +155,21 @@ impl MusicCatalog for MusicCatalogService {
             Err(sqlx::Error::RowNotFound) => Err(Status::not_found("track not found")),
             Err(e) => Err(Status::from_error(Box::new(e))),
         }
+    }
+
+    async fn generate_play_token(&self, req: Request<GeneratePlayTokenRequest>) -> Result<Response<PlayToken>, Status> {
+        let req = req.into_inner();
+
+        let query_res = self.track_db
+            .register_play(req.track_id)
+            .await;
+
+        let audio_uri = match query_res {
+            Ok(v) => v,
+            Err(sqlx::Error::RowNotFound) => return Err(Status::not_found("track not found")),
+            Err(e) => return Err(Status::from_error(Box::new(e))),
+        };
+
+        Ok(Response::from(PlayToken { play_token: audio_uri }))
     }
 }

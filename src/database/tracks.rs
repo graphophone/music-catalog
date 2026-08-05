@@ -19,7 +19,9 @@ impl TracksDb {
         Ok(TracksDb { pool })
     }
 
-    pub async fn get_full_track_info(&self, track_id: i64) -> Result<Option<FullTrackInfo>, sqlx::Error> {
+    pub async fn get_full_track_info(&self, track_id: i64) -> Result<FullTrackInfo, sqlx::Error> {
+        let mut tx = self.pool.begin().await?;
+        
         let query = r"
             SELECT
                 T.id,
@@ -43,15 +45,10 @@ impl TracksDb {
                 play_count,
                 T.user_id;
         ";
-        let mut tx = self.pool.begin().await?;
         let track_info = sqlx::query(query)
             .bind(track_id)
-            .fetch_optional(&mut *tx)
+            .fetch_one(&mut *tx)
             .await?;
-        let track_info = match track_info {
-            Some(track_info) => track_info,
-            None => return Ok(None),
-        };
 
         let query = r"
             SELECT C.id, C.name
@@ -64,6 +61,9 @@ impl TracksDb {
             .bind(track_id)
             .fetch_all(&mut *tx)
             .await?;
+        
+        tx.commit().await?;
+
         let res = FullTrackInfo {
             id: track_info.try_get("id")?,
             name: track_info.try_get("name")?,
@@ -75,19 +75,19 @@ impl TracksDb {
             user_id: track_info.try_get("user_id")?,
             categories: track_categories,
         };
-        tx.commit().await?;
-        Ok(Some(res))
+        Ok(res)
     }
-    pub async fn get_short_track_info(&self, track_id: i64) -> Result<Option<ShortTrackInfo>, sqlx::Error> {
+    pub async fn get_short_track_info(&self, track_id: i64) -> Result<ShortTrackInfo, sqlx::Error> {
         let query = r"
             SELECT
                 id, name, thumbnail_url, duration_seconds, play_count, user_id
             FROM tracks
             WHERE id = $1;
         ";
-        let query = sqlx::query_as::<_, ShortTrackInfo>(query)
-            .bind(track_id);
-        let res = query.fetch_optional(&self.pool).await?;
+        let res = sqlx::query_as::<_, ShortTrackInfo>(query)
+            .bind(track_id)
+            .fetch_one(&self.pool)
+            .await?;
         Ok(res)
     }
 
