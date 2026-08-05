@@ -144,4 +144,22 @@ impl MusicCatalog for MusicCatalogService {
             Err(e) => Err(Status::from_error(Box::new(e))),
         }
     }
+
+    async fn link_track_audio(&self, req: Request<LinkTrackAudioRequest>) -> Result<Response<Empty>, Status> {
+        let req = req.into_inner();
+
+        let link_info = database::tracks::LinkAudioInfo {
+            audio_uri: req.audio_uri,
+            duration_seconds: req.duration_seconds,
+        };
+        let query_res = self.track_db
+            .link_track_audio(req.track_id, &link_info)
+            .await;
+
+        match query_res {
+            Ok(_) => Ok(Response::from(Empty {})),
+            Err(sqlx::Error::RowNotFound) => Err(Status::not_found("track not found")),
+            Err(e) => Err(Status::from_error(Box::new(e))),
+        }
+    }
 }

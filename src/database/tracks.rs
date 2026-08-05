@@ -152,7 +152,7 @@ impl TracksDb {
         Ok(())
     }
 
-    pub async fn link_track_to_audio(&self, track_id: i64, link_info: &LinkAudioInfo) -> Result<(), sqlx::Error> {
+    pub async fn link_track_audio(&self, track_id: i64, link_info: &LinkAudioInfo) -> Result<(), sqlx::Error> {
         let query = r"
             UPDATE tracks SET audio_uri = $1, duration_seconds = $2
             WHERE id = $3'

@@ -9,7 +9,7 @@ service MusicCatalog {
     rpc UpdateTrackInfo(UpdateTrackInfoRequest) returns (Empty);
     rpc UpdateTrackThumbnail(UpdateTrackThumbnailRequest) returns (Empty);
     rpc RemoveTrackInfo(RemoveTrackInfoRequest) returns (Empty);
-    rpc LinkTrackInfo(LinkTrackInfoRequest) returns (Empty);
+    rpc LinkTrackAudio(LinkTrackAudioRequest) returns (Empty);
     rpc GeneratePlayToken(GeneratePlayTokenRequest) returns (PlayToken);
 }
 
@@ -41,7 +41,7 @@ message RemoveTrackInfoRequest {
     int64 track_id = 1;
 }
 
-message LinkTrackInfoRequest {
+message LinkTrackAudioRequest {
     int64 track_id = 1;
     string audio_uri = 2;
     int64 duration_seconds = 3;
