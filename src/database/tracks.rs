@@ -19,7 +19,7 @@ impl TracksDb {
         Ok(TracksDb { pool })
     }
 
-    pub async fn get_full_track_info(&self, track_id: i32) -> Result<Option<FullTrackInfo>, sqlx::Error> {
+    pub async fn get_full_track_info(&self, track_id: i64) -> Result<Option<FullTrackInfo>, sqlx::Error> {
         let query = r"
             SELECT
                 T.id,
@@ -78,7 +78,7 @@ impl TracksDb {
         tx.commit().await?;
         Ok(Some(res))
     }
-    pub async fn get_short_track_info(&self, track_id: i32) -> Result<Option<ShortTrackInfo>, sqlx::Error> {
+    pub async fn get_short_track_info(&self, track_id: i64) -> Result<Option<ShortTrackInfo>, sqlx::Error> {
         let query = r"
             SELECT
                 id, name, thumbnail_url, duration_seconds, play_count, user_id
@@ -91,14 +91,14 @@ impl TracksDb {
         Ok(res)
     }
 
-    pub async fn save_track_info(&self, track_info: &UploadTrackInfo) -> Result<i32, sqlx::Error> {
+    pub async fn save_track_info(&self, track_info: &UploadTrackInfo) -> Result<i64, sqlx::Error> {
         let query = r"
             INSERT INTO tracks (
                 name, description, user_id
             ) VALUES ($1, $2, $3)
             RETURNING id;
         ";
-        let id: i32 = sqlx::query_scalar(query)
+        let id: i64 = sqlx::query_scalar(query)
             .bind(&track_info.name)
             .bind(&track_info.description)
             .bind(track_info.user_id)
@@ -107,7 +107,7 @@ impl TracksDb {
         Ok(id)
     }
 
-    pub async fn update_track_info(&self, track_id: i32, track_info: &UpdateTrackInfo) -> Result<(), sqlx::Error> {
+    pub async fn update_track_info(&self, track_id: i64, track_info: &UpdateTrackInfo) -> Result<(), sqlx::Error> {
         let query = r"
             UPDATE tracks SET name = $1, description = $2
             WHERE id = $3;
@@ -124,7 +124,7 @@ impl TracksDb {
         Ok(())
     }
 
-    pub async fn update_track_thumbnail(&self, track_id: i32, thumbnail_url: &str) -> Result<(), sqlx::Error> {
+    pub async fn update_track_thumbnail(&self, track_id: i64, thumbnail_url: &str) -> Result<(), sqlx::Error> {
         let query = r"
             UPDATE tracks SET thumbnail_url = $1
             WHERE id = $2;
@@ -140,7 +140,7 @@ impl TracksDb {
         Ok(())
     }
 
-    pub async fn remove_track(&self, track_id: i32) -> Result<(), sqlx::Error> {
+    pub async fn remove_track(&self, track_id: i64) -> Result<(), sqlx::Error> {
         let query = "DELETE FROM tracks WHERE id = $1;";
         let res = sqlx::query(query)
             .bind(track_id)
@@ -152,7 +152,7 @@ impl TracksDb {
         Ok(())
     }
 
-    pub async fn link_track_to_audio(&self, track_id: i32, link_info: &LinkAudioInfo) -> Result<(), sqlx::Error> {
+    pub async fn link_track_to_audio(&self, track_id: i64, link_info: &LinkAudioInfo) -> Result<(), sqlx::Error> {
         let query = r"
             UPDATE tracks SET audio_uri = $1, duration_seconds = $2
             WHERE id = $3'
@@ -166,7 +166,7 @@ impl TracksDb {
         Ok(())
     }
 
-    pub async fn register_play(&self, track_id: i32) -> Result<String, sqlx::Error> {
+    pub async fn register_play(&self, track_id: i64) -> Result<String, sqlx::Error> {
         let query = r"
             UPDATE tracks SET play_count = play_count + 1
             WHERE id = $1
@@ -182,46 +182,46 @@ impl TracksDb {
 
 #[derive(Debug)]
 pub struct FullTrackInfo {
-    pub id: i32,
+    pub id: i64,
     pub name: String,
     pub description: Option<String>,
     pub thumbnail_url: Option<String>,
-    pub duration_seconds: Option<i32>,
+    pub duration_seconds: Option<i64>,
     pub play_count: i64,
     pub like_count: i64,
-    pub user_id: i32,
+    pub user_id: i64,
     pub categories: Vec<CategoryInfo>,
 }
 
 #[derive(FromRow, Debug)]
 pub struct ShortTrackInfo {
-    pub id: i32,
+    pub id: i64,
     pub name: String,
     pub thumbnail_url: Option<String>,
-    pub duration_seconds: Option<i32>,
+    pub duration_seconds: Option<i64>,
     pub play_count: i64,
-    pub user_id: i32,
+    pub user_id: i64,
 }
 
 pub struct UploadTrackInfo {
     pub name: String,
     pub description: Option<String>,
-    pub user_id: i32,
+    pub user_id: i64,
 }
 
 pub struct UpdateTrackInfo {
     pub name: String,
     pub description: Option<String>,
-    pub category_ids: Vec<i32>,
+    pub category_ids: Vec<i64>,
 }
 
 #[derive(FromRow, Debug)]
 pub struct CategoryInfo {
-    pub id: i32,
+    pub id: i64,
     pub name: String,
 }
 
 pub struct LinkAudioInfo {
     pub audio_uri: String,
-    pub duration_seconds: i32,
+    pub duration_seconds: i64,
 }

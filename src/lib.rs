@@ -4,10 +4,9 @@ use crate::database::tracks;
 
 pub mod config;
 pub mod database;
+pub mod services;
 
-pub async fn run(config_filename: &str) -> Result<(), Box<dyn Error>> {
-    let conf = crate::config::Config::build(config_filename)?;
-    dbg!(&conf);
+pub async fn run(conf: &config::Config) -> Result<(), Box<dyn Error>> {
     let tracks_db = tracks::TracksDb::build(&conf).await?;
 
     let track_id = tracks_db.save_track_info(&tracks::UploadTrackInfo{
