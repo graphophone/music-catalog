@@ -112,7 +112,21 @@ impl MusicCatalog for MusicCatalogService {
 
         match query_res {
             Ok(_) => Ok(Response::from(Empty {})),
-            Err(sqlx::Error::RowNotFound) => Err(Status::not_found("track info not found")),
+            Err(sqlx::Error::RowNotFound) => Err(Status::not_found("track not found")),
+            Err(e) => Err(Status::from_error(Box::new(e))),
+        }
+    }
+
+    async fn update_track_thumbnail(&self, req: Request<UpdateTrackThumbnailRequest>) -> Result<Response<Empty>, Status> {
+        let req = req.into_inner();
+
+        let query_res = self.track_db
+            .update_track_thumbnail(req.track_id, "placeholder url for now")
+            .await;
+
+        match query_res {
+            Ok(_) => Ok(Response::from(Empty {})),
+            Err(sqlx::Error::RowNotFound) => Err(Status::not_found("track not found")),
             Err(e) => Err(Status::from_error(Box::new(e))),
         }
     }
