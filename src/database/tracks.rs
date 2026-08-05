@@ -140,7 +140,7 @@ impl TracksDb {
         Ok(())
     }
 
-    pub async fn remove_track(&self, track_id: i64) -> Result<(), sqlx::Error> {
+    pub async fn remove_track_info(&self, track_id: i64) -> Result<(), sqlx::Error> {
         let query = "DELETE FROM tracks WHERE id = $1;";
         let res = sqlx::query(query)
             .bind(track_id)

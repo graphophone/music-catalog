@@ -130,4 +130,18 @@ impl MusicCatalog for MusicCatalogService {
             Err(e) => Err(Status::from_error(Box::new(e))),
         }
     }
+
+    async fn remove_track_info(&self, req: Request<RemoveTrackInfoRequest>) -> Result<Response<Empty>, Status> {
+        let req = req.into_inner();
+
+        let query_res = self.track_db
+            .remove_track_info(req.track_id)
+            .await;
+
+        match query_res {
+            Ok(_) => Ok(Response::from(Empty {})),
+            Err(sqlx::Error::RowNotFound) => Err(Status::not_found("track not found")),
+            Err(e) => Err(Status::from_error(Box::new(e))),
+        }
+    }
 }
