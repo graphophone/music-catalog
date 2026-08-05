@@ -97,4 +97,23 @@ impl MusicCatalog for MusicCatalogService {
             Err(e) => Err(Status::from_error(Box::new(e))),
         }
     }
+
+    async fn update_track_info(&self, req: Request<UpdateTrackInfoRequest>) -> Result<Response<Empty>, Status> {
+        let req = req.into_inner();
+
+        let track_info = database::tracks::UpdateTrackInfo {
+            name: req.name,
+            description: req.description,
+            category_ids: req.category_ids,
+        };
+        let query_res = self.track_db
+            .update_track_info(req.track_id, &track_info)
+            .await;
+
+        match query_res {
+            Ok(_) => Ok(Response::from(Empty {})),
+            Err(sqlx::Error::RowNotFound) => Err(Status::not_found("track info not found")),
+            Err(e) => Err(Status::from_error(Box::new(e))),
+        }
+    }
 }
