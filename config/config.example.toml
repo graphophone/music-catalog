@@ -4,3 +4,7 @@ port = 5432
 user = "user"
 password = "my-postgres-pass"
 database = "music-catalog-db"
+
+[service]
+address = "127.0.0.1"
+port = 8080

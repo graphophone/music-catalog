@@ -47,7 +47,7 @@ impl MusicCatalog for MusicCatalogService {
                 .map(|c| CategoryInfo { id: c.id, name: c.name })
                 .collect(),
         };
-        Ok(Response::from(res))
+        Ok(Response::new(res))
     }
 
     async fn get_short_track_info(&self, req: Request<GetTrackInfoRequest>) -> Result<Response<ShortTrackInfo>, Status> {
@@ -71,7 +71,7 @@ impl MusicCatalog for MusicCatalogService {
             play_count: track_info.play_count,
             user_id: track_info.user_id,
         };
-        Ok(Response::from(res))
+        Ok(Response::new(res))
     }
 
     async fn upload_track_info(&self, req: Request<UploadTrackInfoRequest>) -> Result<Response<UploadTrackInfoResponse>, Status> {
@@ -87,7 +87,7 @@ impl MusicCatalog for MusicCatalogService {
             .await;
 
         match query_res {
-            Ok(id) => Ok(Response::from(UploadTrackInfoResponse { id })),
+            Ok(id) => Ok(Response::new(UploadTrackInfoResponse { id })),
             Err(e) => Err(Status::from_error(Box::new(e))),
         }
     }
@@ -105,7 +105,7 @@ impl MusicCatalog for MusicCatalogService {
             .await;
 
         match query_res {
-            Ok(_) => Ok(Response::from(Empty {})),
+            Ok(_) => Ok(Response::new(Empty {})),
             Err(sqlx::Error::RowNotFound) => Err(Status::not_found("track not found")),
             Err(e) => Err(Status::from_error(Box::new(e))),
         }
@@ -119,7 +119,7 @@ impl MusicCatalog for MusicCatalogService {
             .await;
 
         match query_res {
-            Ok(_) => Ok(Response::from(Empty {})),
+            Ok(_) => Ok(Response::new(Empty {})),
             Err(sqlx::Error::RowNotFound) => Err(Status::not_found("track not found")),
             Err(e) => Err(Status::from_error(Box::new(e))),
         }
@@ -133,7 +133,7 @@ impl MusicCatalog for MusicCatalogService {
             .await;
 
         match query_res {
-            Ok(_) => Ok(Response::from(Empty {})),
+            Ok(_) => Ok(Response::new(Empty {})),
             Err(sqlx::Error::RowNotFound) => Err(Status::not_found("track not found")),
             Err(e) => Err(Status::from_error(Box::new(e))),
         }
@@ -151,7 +151,7 @@ impl MusicCatalog for MusicCatalogService {
             .await;
 
         match query_res {
-            Ok(_) => Ok(Response::from(Empty {})),
+            Ok(_) => Ok(Response::new(Empty {})),
             Err(sqlx::Error::RowNotFound) => Err(Status::not_found("track not found")),
             Err(e) => Err(Status::from_error(Box::new(e))),
         }
@@ -170,6 +170,6 @@ impl MusicCatalog for MusicCatalogService {
             Err(e) => return Err(Status::from_error(Box::new(e))),
         };
 
-        Ok(Response::from(PlayToken { play_token: audio_uri }))
+        Ok(Response::new(PlayToken { play_token: audio_uri }))
     }
 }

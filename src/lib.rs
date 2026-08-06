@@ -1,6 +1,8 @@
-use std::error::Error;
+use std::{error::Error, net::SocketAddr};
 
-use crate::database::tracks;
+use tonic::transport::Server;
+
+use crate::{database::tracks, services::music_catalog_service::{MusicCatalogService, music_catalog::music_catalog_server::MusicCatalogServer}};
 
 pub mod config;
 pub mod database;
@@ -8,17 +10,12 @@ pub mod services;
 
 pub async fn run(conf: &config::Config) -> Result<(), Box<dyn Error>> {
     let tracks_db = tracks::TracksDb::build(&conf).await?;
+    let music_catalog_service = MusicCatalogService::build(tracks_db);
+    let addr: SocketAddr = format!("{}:{}", &conf.service.address, conf.service.port).parse()?;
 
-    let track_id = tracks_db.save_track_info(&tracks::UploadTrackInfo{
-        name: String::from("White dove"),
-        description: Some(String::from("Description")),
-        user_id: 1,
-    }).await?;
-
-    let track_info = tracks_db.get_full_track_info(track_id).await?;
-    match track_info.as_ref() {
-        Some(info) => { dbg!(info); },
-        None => eprintln!("no track was found with id = {}", track_id),
-    }
+    Server::builder()
+        .add_service(MusicCatalogServer::new(music_catalog_service))
+        .serve(addr)
+        .await?;
     Ok(())
 }
