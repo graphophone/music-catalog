@@ -13,6 +13,7 @@ pub async fn run(conf: &config::Config) -> Result<(), Box<dyn Error>> {
     let music_catalog_service = MusicCatalogService::build(tracks_db);
     let addr: SocketAddr = format!("{}:{}", &conf.service.address, conf.service.port).parse()?;
 
+    println!("serving music catalog grpc api on port {}", conf.service.port);
     Server::builder()
         .add_service(MusicCatalogServer::new(music_catalog_service))
         .serve(addr)
