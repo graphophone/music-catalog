@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+package music_catalog;
+
+service MusicCatalog {
+    rpc GetFullTrackInfo(GetTrackInfoRequest) returns (FullTrackInfo);
+    rpc GetShortTrackInfo(GetTrackInfoRequest) returns (ShortTrackInfo);
+    rpc UploadTrackInfo(UploadTrackInfoRequest) returns (UploadTrackInfoResponse);
+    rpc UpdateTrackInfo(UpdateTrackInfoRequest) returns (Empty);
+    rpc UpdateTrackThumbnail(UpdateTrackThumbnailRequest) returns (Empty);
+    rpc RemoveTrackInfo(RemoveTrackInfoRequest) returns (Empty);
+    rpc LinkTrackAudio(LinkTrackAudioRequest) returns (Empty);
+    rpc GeneratePlayToken(GeneratePlayTokenRequest) returns (PlayToken);
+}
+
+message Empty {}
+
+message GetTrackInfoRequest {
+    int64 track_id = 1;
+}
+
+message UploadTrackInfoRequest {
+    string name = 1;
+    optional string description = 2;
+    int64 user_id = 3;
+}
+
+message UpdateTrackInfoRequest {
+    int64 track_id = 1;
+    string name = 2;
+    optional string description = 3;
+    repeated int64 category_ids = 4;
+}
+
+message UpdateTrackThumbnailRequest {
+    int64 track_id = 1;
+    optional bytes thumbnail = 2;
+}
+
+message RemoveTrackInfoRequest {
+    int64 track_id = 1;
+}
+
+message LinkTrackAudioRequest {
+    int64 track_id = 1;
+    string audio_uri = 2;
+    int64 duration_seconds = 3;
+}
+
+message GeneratePlayTokenRequest {
+    int64 track_id = 1;
+}
+
+message FullTrackInfo {
+    int64 id = 1;
+    string name = 2;
+    optional string description = 3;
+    optional string thumbnail_url = 4;
+    optional int64 duration_seconds = 5;
+    int64 play_count = 6;
+    int64 like_count = 7;
+    int64 user_id = 8;
+    repeated CategoryInfo categories = 9;
+}
+
+message ShortTrackInfo {
+    int64 id = 1;
+    string name = 2;
+    optional string thumbnail_url = 3;
+    optional int64 duration_seconds = 4;
+    int64 play_count = 5;
+    int64 user_id = 6;
+}
+
+message UploadTrackInfoResponse {
+    int64 id = 1;
+}
+
+message PlayToken {
+    string play_token = 1;
+}
+
+message CategoryInfo {
+    int64 id = 1;
+    string name = 2;
+}

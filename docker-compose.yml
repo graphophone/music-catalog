@@ -23,6 +23,8 @@ services:
         condition: service_healthy
     volumes:
       - .:/app
+    ports:
+      - "7878:8080"
 
 volumes:
   postgres-data:
