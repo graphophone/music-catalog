@@ -1,25 +1,20 @@
 use sqlx::{Row, prelude::FromRow};
 
-pub struct TracksDb {
-    pool: sqlx::postgres::PgPool,
+use crate::database::MusicDb;
+
+pub trait TracksDb {
+    async fn get_full_track_info(&self, track_id: i64) -> Result<FullTrackInfo, sqlx::Error>;
+    async fn get_short_track_info(&self, track_id: i64) -> Result<ShortTrackInfo, sqlx::Error>;
+    async fn save_track_info(&self, track_info: &UploadTrackInfo) -> Result<i64, sqlx::Error>;
+    async fn update_track_info(&self, track_id: i64, track_info: &UpdateTrackInfo) -> Result<(), sqlx::Error>;
+    async fn update_track_thumbnail(&self, track_id: i64, thumbnail_url: &str) -> Result<(), sqlx::Error>;
+    async fn remove_track_info(&self, track_id: i64) -> Result<(), sqlx::Error>;
+    async fn link_track_audio(&self, track_id: i64, link_info: &LinkAudioInfo) -> Result<(), sqlx::Error>;
+    async fn register_play(&self, track_id: i64) -> Result<String, sqlx::Error>;
 }
 
-impl TracksDb {
-    pub async fn build(conf: &crate::config::Config) -> Result<TracksDb, sqlx::Error> {
-        let url = format!(
-            "postgres://{}:{}@{}:{}/{}",
-            &conf.postgres.user,
-            &conf.postgres.password,
-            &conf.postgres.host,
-            &conf.postgres.port,
-            &conf.postgres.database,
-        );
-        let pool = sqlx::postgres::PgPool::connect(&url).await?;
-        sqlx::migrate!("./migrations").run(&pool).await?;
-        Ok(TracksDb { pool })
-    }
-
-    pub async fn get_full_track_info(&self, track_id: i64) -> Result<FullTrackInfo, sqlx::Error> {
+impl TracksDb for MusicDb {
+    async fn get_full_track_info(&self, track_id: i64) -> Result<FullTrackInfo, sqlx::Error> {
         let mut tx = self.pool.begin().await?;
         
         let query = r"
@@ -77,7 +72,8 @@ impl TracksDb {
         };
         Ok(res)
     }
-    pub async fn get_short_track_info(&self, track_id: i64) -> Result<ShortTrackInfo, sqlx::Error> {
+
+    async fn get_short_track_info(&self, track_id: i64) -> Result<ShortTrackInfo, sqlx::Error> {
         let query = r"
             SELECT
                 id, name, thumbnail_url, duration_seconds, play_count, user_id
@@ -91,7 +87,7 @@ impl TracksDb {
         Ok(res)
     }
 
-    pub async fn save_track_info(&self, track_info: &UploadTrackInfo) -> Result<i64, sqlx::Error> {
+    async fn save_track_info(&self, track_info: &UploadTrackInfo) -> Result<i64, sqlx::Error> {
         let query = r"
             INSERT INTO tracks (
                 name, description, user_id
@@ -107,7 +103,7 @@ impl TracksDb {
         Ok(id)
     }
 
-    pub async fn update_track_info(&self, track_id: i64, track_info: &UpdateTrackInfo) -> Result<(), sqlx::Error> {
+    async fn update_track_info(&self, track_id: i64, track_info: &UpdateTrackInfo) -> Result<(), sqlx::Error> {
         let query = r"
             UPDATE tracks SET name = $1, description = $2
             WHERE id = $3;
@@ -124,7 +120,7 @@ impl TracksDb {
         Ok(())
     }
 
-    pub async fn update_track_thumbnail(&self, track_id: i64, thumbnail_url: &str) -> Result<(), sqlx::Error> {
+    async fn update_track_thumbnail(&self, track_id: i64, thumbnail_url: &str) -> Result<(), sqlx::Error> {
         let query = r"
             UPDATE tracks SET thumbnail_url = $1
             WHERE id = $2;
@@ -140,7 +136,7 @@ impl TracksDb {
         Ok(())
     }
 
-    pub async fn remove_track_info(&self, track_id: i64) -> Result<(), sqlx::Error> {
+    async fn remove_track_info(&self, track_id: i64) -> Result<(), sqlx::Error> {
         let query = "DELETE FROM tracks WHERE id = $1;";
         let res = sqlx::query(query)
             .bind(track_id)
@@ -152,7 +148,7 @@ impl TracksDb {
         Ok(())
     }
 
-    pub async fn link_track_audio(&self, track_id: i64, link_info: &LinkAudioInfo) -> Result<(), sqlx::Error> {
+    async fn link_track_audio(&self, track_id: i64, link_info: &LinkAudioInfo) -> Result<(), sqlx::Error> {
         let query = r"
             UPDATE tracks SET audio_uri = $1, duration_seconds = $2
             WHERE id = $3
@@ -166,7 +162,7 @@ impl TracksDb {
         Ok(())
     }
 
-    pub async fn register_play(&self, track_id: i64) -> Result<String, sqlx::Error> {
+    async fn register_play(&self, track_id: i64) -> Result<String, sqlx::Error> {
         let query = r"
             UPDATE tracks SET play_count = play_count + 1
             WHERE id = $1

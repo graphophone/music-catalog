@@ -1,18 +1,19 @@
 use tonic::{Request, Response, Status};
 use music_catalog::music_catalog_server::{MusicCatalog};
 use music_catalog::*;
-use crate::database;
+use crate::database::tracks::TracksDb;
+use crate::database::{self, MusicDb};
 
 pub mod music_catalog {
     tonic::include_proto!("music_catalog");
 }
 
 pub struct MusicCatalogService {
-    track_db: database::tracks::TracksDb,
+    track_db: MusicDb,
 }
 
 impl MusicCatalogService {
-    pub fn build(track_db: database::tracks::TracksDb) -> MusicCatalogService {
+    pub fn build(track_db: MusicDb) -> MusicCatalogService {
         MusicCatalogService {
             track_db,
         }
