@@ -42,7 +42,6 @@ impl MusicCatalog for MusicCatalogService {
             thumbnail_url: track_info.thumbnail_url,
             duration_seconds: track_info.duration_seconds,
             play_count: track_info.play_count,
-            like_count: track_info.like_count,
             user_id: track_info.user_id,
             categories: track_info.categories.into_iter()
                 .map(|c| CategoryInfo { id: c.id, name: c.name })
