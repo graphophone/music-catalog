@@ -156,7 +156,7 @@ impl TracksDb for MusicDb {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct FullTrackInfo {
     pub id: i64,
     pub name: String,
@@ -168,7 +168,7 @@ pub struct FullTrackInfo {
     pub categories: Vec<CategoryInfo>,
 }
 
-#[derive(sqlx::FromRow, Debug)]
+#[derive(sqlx::FromRow, Debug, PartialEq)]
 pub struct ShortTrackInfo {
     pub id: i64,
     pub name: String,
@@ -190,7 +190,7 @@ pub struct UpdateTrackInfo {
     pub category_ids: Vec<i64>,
 }
 
-#[derive(sqlx::FromRow, Debug)]
+#[derive(sqlx::FromRow, Debug, PartialEq)]
 pub struct CategoryInfo {
     pub id: i64,
     pub name: String,
@@ -199,4 +199,190 @@ pub struct CategoryInfo {
 pub struct LinkAudioInfo {
     pub audio_uri: String,
     pub duration_seconds: i64,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use anyhow::Result;
+
+    #[sqlx::test]
+    async fn test_save_track(pool: sqlx::PgPool) -> Result<()> {
+        let db = MusicDb { pool };
+        let track_data1 = UploadTrackInfo {
+            name: "test song 1".to_string(),
+            description: None,
+            user_id: 1,
+        };
+
+        db.save_track_info(&track_data1).await?;
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_get_short_track(pool: sqlx::PgPool) -> Result<()> {
+        let db = MusicDb { pool };
+        let track_data1 = UploadTrackInfo {
+            name: "test song 1".to_string(),
+            description: Some("test description 1".to_string()),
+            user_id: 1,
+        };
+
+        let id1 = db.save_track_info(&track_data1).await?;
+        let short_data = db.get_short_track_info(id1).await?;
+
+        assert_eq!(short_data, ShortTrackInfo {
+            id: id1,
+            name: track_data1.name,
+            thumbnail_url: None,
+            duration_seconds: None,
+            play_count: 0,
+            user_id: track_data1.user_id,
+        });
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_get_full_track(pool: sqlx::PgPool) -> Result<()> {
+        let db = MusicDb { pool };
+        let track_data1 = UploadTrackInfo {
+            name: "test song 1".to_string(),
+            description: Some("test description 1".to_string()),
+            user_id: 1,
+        };
+
+        let id1 = db.save_track_info(&track_data1).await?;
+        let full_data = db.get_full_track_info(id1).await?;
+
+        assert_eq!(full_data, FullTrackInfo {
+            id: id1,
+            name: track_data1.name,
+            thumbnail_url: None,
+            duration_seconds: None,
+            play_count: 0,
+            user_id: track_data1.user_id,
+            description: track_data1.description,
+            categories: vec![],
+        });
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_update_track(pool: sqlx::PgPool) -> Result<()> {
+        let db = MusicDb { pool };
+        let track_data1 = UploadTrackInfo {
+            name: "test song 1".to_string(),
+            description: Some("test description 1".to_string()),
+            user_id: 1,
+        };
+        let update_track1 = UpdateTrackInfo {
+            name: "new name 1".to_string(),
+            description: Some("new description".to_string()),
+            category_ids: vec![],
+        };
+        let thumbnail_url = "test url";
+
+        let id1 = db.save_track_info(&track_data1).await?;
+        db.update_track_info(id1, &update_track1).await?;
+        db.update_track_thumbnail(id1, thumbnail_url).await?;
+        let full_data = db.get_full_track_info(id1).await?;
+
+        assert_eq!(full_data, FullTrackInfo {
+            id: id1,
+            name: update_track1.name,
+            thumbnail_url: Some(thumbnail_url.to_string()),
+            duration_seconds: None,
+            play_count: 0,
+            user_id: track_data1.user_id,
+            description: update_track1.description,
+            categories: vec![],  // fix later
+        });
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_remove_track(pool: sqlx::PgPool) -> Result<()> {
+        let db = MusicDb { pool };
+        let track_data1 = UploadTrackInfo {
+            name: "test song 1".to_string(),
+            description: Some("test description 1".to_string()),
+            user_id: 1,
+        };
+
+        let id1 = db.save_track_info(&track_data1).await?;
+        db.remove_track_info(id1).await?;
+        let full_data = db.get_full_track_info(id1).await;
+        
+        match full_data {
+            Ok(_) => panic!("track was not deleted"),
+            Err(_) => Ok(()),
+        }
+    }
+
+    #[sqlx::test]
+    async fn test_link_audio(pool: sqlx::PgPool) -> Result<()> {
+        let db = MusicDb { pool };
+        let track_data1 = UploadTrackInfo {
+            name: "test song 1".to_string(),
+            description: Some("test description 1".to_string()),
+            user_id: 1,
+        };
+        let audio_info = LinkAudioInfo {
+            audio_uri: "some uri".to_string(),
+            duration_seconds: 123,
+        };
+
+        let id1 = db.save_track_info(&track_data1).await?;
+        db.link_track_audio(id1, &audio_info).await?;
+        let full_data = db.get_full_track_info(id1).await?;
+
+        assert_eq!(full_data, FullTrackInfo {
+            id: id1,
+            name: track_data1.name,
+            thumbnail_url: None,
+            duration_seconds: Some(audio_info.duration_seconds),
+            play_count: 0,
+            user_id: track_data1.user_id,
+            description: track_data1.description,
+            categories: vec![],  // fix later
+        });
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_register_play(pool: sqlx::PgPool) -> Result<()> {
+        let db = MusicDb { pool };
+        let track_data1 = UploadTrackInfo {
+            name: "test song 1".to_string(),
+            description: Some("test description 1".to_string()),
+            user_id: 1,
+        };
+        let audio_info = LinkAudioInfo {
+            audio_uri: "some uri".to_string(),
+            duration_seconds: 123,
+        };
+
+        let id1 = db.save_track_info(&track_data1).await?;
+        db.link_track_audio(id1, &audio_info).await?;
+        let audio_uri = db.register_play(id1).await?;
+
+        assert_eq!(audio_uri, audio_info.audio_uri);
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_register_play_without_audio(pool: sqlx::PgPool) -> Result<()> {
+        let db = MusicDb { pool };
+        let track_data1 = UploadTrackInfo {
+            name: "test song 1".to_string(),
+            description: Some("test description 1".to_string()),
+            user_id: 1,
+        };
+
+        let id1 = db.save_track_info(&track_data1).await?;
+        match db.register_play(id1).await {
+            Ok(_) => panic!("play was registered when audio was not linked"),
+            Err(_) => Ok(()),
+        }
+    }
 }

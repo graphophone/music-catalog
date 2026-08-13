@@ -5,7 +5,7 @@ use tonic::transport::Server;
 use crate::{database::{MusicDb}, services::music_catalog_service::{MusicCatalogService, music_catalog::music_catalog_server::MusicCatalogServer}};
 
 pub mod config;
-pub mod database;
+mod database;
 pub mod services;
 
 pub async fn run(conf: &config::Config) -> Result<(), Box<dyn Error>> {
