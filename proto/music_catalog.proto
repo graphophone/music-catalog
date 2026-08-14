@@ -58,9 +58,8 @@ message FullTrackInfo {
     optional string thumbnail_url = 4;
     optional int64 duration_seconds = 5;
     int64 play_count = 6;
-    int64 like_count = 7;
-    int64 user_id = 8;
-    repeated CategoryInfo categories = 9;
+    int64 user_id = 7;
+    repeated CategoryInfo categories = 8;
 }
 
 message ShortTrackInfo {

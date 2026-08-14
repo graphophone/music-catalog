@@ -5,14 +5,8 @@ CREATE TABLE IF NOT EXISTS tracks (
     thumbnail_url TEXT,
     audio_uri TEXT,
     duration_seconds BIGINT,
-    play_count BIGINT DEFAULT 0,
+    play_count BIGINT NOT NULL DEFAULT 0,
     user_id BIGINT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS likes (
-    track_id BIGINT REFERENCES tracks (id) ON DELETE CASCADE,
-    user_id BIGINT NOT NULL,
-    CONSTRAINT unique_like_constraint UNIQUE(track_id, user_id)
 );
 
 CREATE TABLE IF NOT EXISTS categories (
