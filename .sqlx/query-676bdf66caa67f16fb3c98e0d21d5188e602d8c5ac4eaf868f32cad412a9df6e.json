@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE tracks SET name = $1, description = $2\n            WHERE id = $3;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "676bdf66caa67f16fb3c98e0d21d5188e602d8c5ac4eaf868f32cad412a9df6e"
+}

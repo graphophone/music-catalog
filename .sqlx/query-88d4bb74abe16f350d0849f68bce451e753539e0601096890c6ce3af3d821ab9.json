@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE tracks SET play_count = play_count + 1\n            WHERE id = $1\n            RETURNING audio_uri;",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "audio_uri",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "tracks",
+            "name": "audio_uri"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "88d4bb74abe16f350d0849f68bce451e753539e0601096890c6ce3af3d821ab9"
+}

@@ -1,0 +1,23 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@v7
+      - name: Prelude
+        run: sudo apt install protobuf-compiler
+      - name: Set rust toolchain
+        run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
+      - name: Set env
+        run: echo "SQLX_OFFLINE=true" >> $GITHUB_ENV
+      - name: Build project
+        run: cargo test
+      - name: Run unit tests
+        run: cargo test
