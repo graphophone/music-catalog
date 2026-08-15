@@ -1,0 +1,43 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: my_test_pass
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set env
+        run: echo "DATABASE_URL=postgres://test_user:my_test_pass@localhost:5432" >> $GITHUB_ENV
+      - name: Prelude
+        run: |
+          PROTOC_VERSION=$(curl -s "https://api.github.com/repos/protocolbuffers/protobuf/releases/latest" | grep -Po '"tag_name": "v\K[0-9.]+')
+          wget -qO protoc.zip https://github.com/protocolbuffers/protobuf/releases/latest/download/protoc-$PROTOC_VERSION-linux-x86_64.zip
+          sudo unzip -q protoc.zip bin/protoc -d /usr/local
+          sudo chmod a+x /usr/local/bin/protoc
+          rm -rf protoc.zip
+          
+          cargo install sqlx-cli
+          sqlx migrate run
+      - name: Build project
+        run: cargo test
+      - name: Run unit tests
+        run: cargo test
