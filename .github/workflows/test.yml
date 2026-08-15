@@ -9,6 +9,20 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: my_test_pass
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     steps:
       - uses: actions/checkout@v7
       - name: Prelude
@@ -21,7 +35,7 @@ jobs:
       - name: Set rust toolchain
         run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
       - name: Set env
-        run: echo "SQLX_OFFLINE=true" >> $GITHUB_ENV
+        run: echo "DATABASE_URL=postgres://test_user:my_test_pass@postgres:5432" >> $GITHUB_ENV
       - name: Build project
         run: cargo test
       - name: Run unit tests
