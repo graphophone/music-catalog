@@ -1,4 +1,4 @@
-use crate::database::{MusicDb, categories::CategoryInfo};
+use crate::database::{MusicDb, categories::{CategoriesDb, CategoryInfo}};
 
 pub trait TracksDb {
     async fn get_full_track_info(&self, track_id: i64) -> Result<FullTrackInfo, sqlx::Error>;
@@ -31,16 +31,7 @@ impl TracksDb for MusicDb {
             .fetch_one(&mut *tx)
             .await?;
         
-        let query = r"
-            SELECT C.id, C.name
-            FROM categories C
-            JOIN tracks_categories TC
-            ON C.id = TC.category_id
-            WHERE TC.track_id = $1
-        ";
-        let track_categories: Vec<CategoryInfo> = sqlx::query_as::<_, CategoryInfo>(query)
-            .bind(track_id)
-            .fetch_all(&mut *tx)
+        let track_categories = self.get_categories_for_track(track_id)
             .await?;
         
         tx.commit().await?;
@@ -72,6 +63,8 @@ impl TracksDb for MusicDb {
     }
 
     async fn save_track_info(&self, track_info: &UploadTrackInfo) -> Result<i64, sqlx::Error> {
+        let mut tx = self.pool.begin().await?;
+        
         let id: i64 = sqlx::query_scalar!(r"
             INSERT INTO tracks (
                 name, description, user_id
@@ -81,12 +74,19 @@ impl TracksDb for MusicDb {
             track_info.description,
             track_info.user_id,
         )
-            .fetch_one(&self.pool)
+            .fetch_one(&mut *tx)
             .await?;
+
+        self.link_track_categories(id, &track_info.categories_ids)
+            .await?;
+
+        tx.commit().await?;
         Ok(id)
     }
 
     async fn update_track_info(&self, track_id: i64, track_info: &UpdateTrackInfo) -> Result<(), sqlx::Error> {
+    let mut tx = self.pool.begin().await?;
+        
         let res = sqlx::query!(r"
             UPDATE tracks SET name = $1, description = $2
             WHERE id = $3;",
@@ -94,11 +94,16 @@ impl TracksDb for MusicDb {
             track_info.description,
             track_id,
         )
-            .execute(&self.pool)
+            .execute(&mut *tx)
             .await?;
         if res.rows_affected() == 0 {
             return Err(sqlx::Error::RowNotFound);
         }
+
+        self.link_track_categories(track_id, &track_info.categories_ids)
+            .await?;
+
+        tx.commit().await?;
         Ok(())
     }
 
@@ -208,7 +213,7 @@ mod tests {
             name: "test song 1".to_string(),
             description: None,
             user_id: 1,
-            categories_ids: vec![],
+            categories_ids: vec![1, 2, 3],
         };
 
         db.save_track_info(&track_data1).await?;

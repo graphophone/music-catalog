@@ -5,7 +5,7 @@ pub trait CategoriesDb {
     async fn create_category(&self, category_name: String) -> Result<(), sqlx::Error>;
     async fn update_category(&self, category_id: i64, new_category_name: String) -> Result<(), sqlx::Error>;
     async fn get_categories(&self, page_number: i32, page_size: i32) -> Result<Vec<CategoryInfo>, sqlx::Error>;
-    async fn link_track_categories(&self, track_id: i64, categories_ids: Vec<i64>) -> Result<(), sqlx::Error>;
+    async fn link_track_categories(&self, track_id: i64, categories_ids: &[i64]) -> Result<(), sqlx::Error>;
 }
 
 impl CategoriesDb for MusicDb {
@@ -58,18 +58,17 @@ impl CategoriesDb for MusicDb {
         Ok(categories)
     }
 
-    async fn link_track_categories(&self, track_id: i64, categories_ids: Vec<i64>) -> Result<(), sqlx::Error> {
-        let mut tx = self.pool.begin().await?;
+    async fn link_track_categories(&self, track_id: i64, categories_ids: &[i64]) -> Result<(), sqlx::Error> {
         sqlx::query!(r"
             INSERT INTO tracks_categories (track_id, category_id)
             SELECT $1, *
             FROM (
                 SELECT * FROM UNNEST($2::bigint[])
-            );
+            )
+            ON CONFLICT DO NOTHING;
         ", track_id, &categories_ids)
-            .execute(&mut *tx)
+            .execute(&self.pool)
             .await?;
-        tx.commit().await?;
         Ok(())
     }
 }
