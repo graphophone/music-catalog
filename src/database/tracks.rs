@@ -1,4 +1,4 @@
-use crate::database::MusicDb;
+use crate::database::{MusicDb, categories::CategoryInfo};
 
 pub trait TracksDb {
     async fn get_full_track_info(&self, track_id: i64) -> Result<FullTrackInfo, sqlx::Error>;
@@ -181,19 +181,14 @@ pub struct ShortTrackInfo {
 pub struct UploadTrackInfo {
     pub name: String,
     pub description: Option<String>,
+    pub categories_ids: Vec<i64>,
     pub user_id: i64,
 }
 
 pub struct UpdateTrackInfo {
     pub name: String,
     pub description: Option<String>,
-    pub category_ids: Vec<i64>,
-}
-
-#[derive(sqlx::FromRow, Debug, PartialEq)]
-pub struct CategoryInfo {
-    pub id: i64,
-    pub name: String,
+    pub categories_ids: Vec<i64>,
 }
 
 pub struct LinkAudioInfo {
@@ -213,6 +208,7 @@ mod tests {
             name: "test song 1".to_string(),
             description: None,
             user_id: 1,
+            categories_ids: vec![],
         };
 
         db.save_track_info(&track_data1).await?;
@@ -226,6 +222,7 @@ mod tests {
             name: "test song 1".to_string(),
             description: Some("test description 1".to_string()),
             user_id: 1,
+            categories_ids: vec![],
         };
 
         let id1 = db.save_track_info(&track_data1).await?;
@@ -249,6 +246,7 @@ mod tests {
             name: "test song 1".to_string(),
             description: Some("test description 1".to_string()),
             user_id: 1,
+            categories_ids: vec![],
         };
 
         let id1 = db.save_track_info(&track_data1).await?;
@@ -274,11 +272,12 @@ mod tests {
             name: "test song 1".to_string(),
             description: Some("test description 1".to_string()),
             user_id: 1,
+            categories_ids: vec![],
         };
         let update_track1 = UpdateTrackInfo {
             name: "new name 1".to_string(),
             description: Some("new description".to_string()),
-            category_ids: vec![],
+            categories_ids: vec![],
         };
         let thumbnail_url = "test url";
 
@@ -307,6 +306,7 @@ mod tests {
             name: "test song 1".to_string(),
             description: Some("test description 1".to_string()),
             user_id: 1,
+            categories_ids: vec![],
         };
 
         let id1 = db.save_track_info(&track_data1).await?;
@@ -326,6 +326,7 @@ mod tests {
             name: "test song 1".to_string(),
             description: Some("test description 1".to_string()),
             user_id: 1,
+            categories_ids: vec![],
         };
         let audio_info = LinkAudioInfo {
             audio_uri: "some uri".to_string(),
@@ -356,6 +357,7 @@ mod tests {
             name: "test song 1".to_string(),
             description: Some("test description 1".to_string()),
             user_id: 1,
+            categories_ids: vec![],
         };
         let audio_info = LinkAudioInfo {
             audio_uri: "some uri".to_string(),
@@ -377,6 +379,7 @@ mod tests {
             name: "test song 1".to_string(),
             description: Some("test description 1".to_string()),
             user_id: 1,
+            categories_ids: vec![],
         };
 
         let id1 = db.save_track_info(&track_data1).await?;

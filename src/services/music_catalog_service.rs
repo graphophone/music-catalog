@@ -81,6 +81,7 @@ impl MusicCatalog for MusicCatalogService {
             name: req.name,
             description: req.description,
             user_id: req.user_id,
+            categories_ids: req.categories_ids,
         };
         let query_res = self.track_db
             .save_track_info(&track_info)
@@ -98,7 +99,7 @@ impl MusicCatalog for MusicCatalogService {
         let track_info = database::tracks::UpdateTrackInfo {
             name: req.name,
             description: req.description,
-            category_ids: req.category_ids,
+            categories_ids: req.categories_ids,
         };
         let query_res = self.track_db
             .update_track_info(req.track_id, &track_info)
