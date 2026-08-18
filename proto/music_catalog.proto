@@ -23,13 +23,14 @@ message UploadTrackInfoRequest {
     string name = 1;
     optional string description = 2;
     int64 user_id = 3;
+    repeated int64 categories_ids = 4;
 }
 
 message UpdateTrackInfoRequest {
     int64 track_id = 1;
     string name = 2;
     optional string description = 3;
-    repeated int64 category_ids = 4;
+    repeated int64 categories_ids = 4;
 }
 
 message UpdateTrackThumbnailRequest {

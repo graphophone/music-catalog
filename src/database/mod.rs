@@ -3,7 +3,9 @@ use anyhow::Result;
 use crate::config::Config;
 
 pub mod tracks;
+pub mod categories;
 
+#[derive(Clone)]
 pub struct MusicDb {
     pub pool: sqlx::PgPool,
 }

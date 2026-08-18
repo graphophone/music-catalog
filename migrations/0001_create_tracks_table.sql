@@ -10,11 +10,12 @@ CREATE TABLE IF NOT EXISTS tracks (
 );
 
 CREATE TABLE IF NOT EXISTS categories (
-    id SERIAL PRIMARY KEY,
+    id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL UNIQUE
 );
 
 CREATE TABLE IF NOT EXISTS tracks_categories (
     track_id BIGINT REFERENCES tracks (id) ON DELETE CASCADE,
-    category_id BIGINT REFERENCES categories (id) ON DELETE CASCADE
+    category_id BIGINT REFERENCES categories (id) ON DELETE CASCADE,
+    UNIQUE (track_id, category_id)
 );
