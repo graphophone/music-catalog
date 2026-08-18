@@ -78,7 +78,7 @@ impl TracksDb for MusicDb {
             .await?;
 
         Self::link_track_categories_with_transaction(
-            &mut *tx, id, &track_info.categories_ids
+            &mut *tx, id, &track_info.categories_ids,
         ).await?;
 
         tx.commit().await?;
@@ -102,7 +102,11 @@ impl TracksDb for MusicDb {
         }
 
         Self::link_track_categories_with_transaction(
-            &mut *tx, track_id, &track_info.categories_ids
+            &mut *tx, track_id, &track_info.categories_ids,
+        ).await?;
+
+        Self::unlink_track_categories_with_transaction(
+            &mut *tx, track_id, &track_info.categories_ids,
         ).await?;
 
         tx.commit().await?;
@@ -211,14 +215,14 @@ mod tests {
     #[sqlx::test]
     async fn test_save_track(pool: sqlx::PgPool) -> Result<()> {
         let db = MusicDb { pool };
-        let c_id1 = db.create_category("Category 1".to_string()).await?;
-        let c_id2 = db.create_category("Category 2".to_string()).await?;
-        let c_id3 = db.create_category("Category 3".to_string()).await?;
+        let c1 = db.create_category("Category 1".to_string()).await?;
+        let c2 = db.create_category("Category 2".to_string()).await?;
+        let c3 = db.create_category("Category 3".to_string()).await?;
         let track_data1 = UploadTrackInfo {
             name: "test song 1".to_string(),
             description: None,
             user_id: 1,
-            categories_ids: vec![c_id1, c_id2, c_id3],
+            categories_ids: vec![c1.id, c2.id, c3.id],
         };
 
         db.save_track_info(&track_data1).await?;
@@ -278,16 +282,20 @@ mod tests {
     #[sqlx::test]
     async fn test_update_track(pool: sqlx::PgPool) -> Result<()> {
         let db = MusicDb { pool };
+        let c1 = db.create_category("Category 1".to_string()).await?;
+        let c2 = db.create_category("Category 2".to_string()).await?;
+        let c3 = db.create_category("Category 3".to_string()).await?;
+        let c4 = db.create_category("Category 4".to_string()).await?;
         let track_data1 = UploadTrackInfo {
             name: "test song 1".to_string(),
-            description: Some("test description 1".to_string()),
+            description: None,
             user_id: 1,
-            categories_ids: vec![],
+            categories_ids: vec![c1.id, c2.id, c3.id],
         };
         let update_track1 = UpdateTrackInfo {
             name: "new name 1".to_string(),
             description: Some("new description".to_string()),
-            categories_ids: vec![],
+            categories_ids: vec![c2.id, c4.id],
         };
         let thumbnail_url = "test url";
 
@@ -304,7 +312,7 @@ mod tests {
             play_count: 0,
             user_id: track_data1.user_id,
             description: update_track1.description,
-            categories: vec![],  // fix later
+            categories: vec![c2, c4],
         });
         Ok(())
     }
@@ -355,7 +363,7 @@ mod tests {
             play_count: 0,
             user_id: track_data1.user_id,
             description: track_data1.description,
-            categories: vec![],  // fix later
+            categories: vec![],
         });
         Ok(())
     }

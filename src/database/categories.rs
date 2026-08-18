@@ -4,10 +4,11 @@ use crate::database::MusicDb;
 
 pub trait CategoriesDb {
     async fn get_categories_for_track(&self, track_id: i64) -> Result<Vec<CategoryInfo>, sqlx::Error>;
-    async fn create_category(&self, category_name: String) -> Result<i64, sqlx::Error>;
+    async fn create_category(&self, category_name: String) -> Result<CategoryInfo, sqlx::Error>;
     async fn update_category(&self, category_id: i64, new_category_name: String) -> Result<(), sqlx::Error>;
     async fn get_categories(&self, page_number: i32, page_size: i32) -> Result<Vec<CategoryInfo>, sqlx::Error>;
     async fn link_track_categories_with_transaction(tx: &mut PgConnection, track_id: i64, categories_ids: &[i64]) -> Result<(), sqlx::Error>;
+    async fn unlink_track_categories_with_transaction(tx: &mut PgConnection, track_id: i64, categories_ids: &[i64]) -> Result<(), sqlx::Error>;
 }
 
 impl CategoriesDb for MusicDb {
@@ -24,15 +25,15 @@ impl CategoriesDb for MusicDb {
         Ok(categories)
     }
 
-    async fn create_category(&self, category_name: String) -> Result<i64, sqlx::Error> {
-        let id = sqlx::query_scalar!(r"
+    async fn create_category(&self, category_name: String) -> Result<CategoryInfo, sqlx::Error> {
+        let category = sqlx::query_as!(CategoryInfo, r"
             INSERT INTO categories (name)
             VALUES ($1)
-            RETURNING id;
+            RETURNING *;
         ", category_name)
             .fetch_one(&self.pool)
             .await?;
-        Ok(id)
+        Ok(category)
     }
 
     async fn update_category(&self, category_id: i64, new_category_name: String) -> Result<(), sqlx::Error> {
@@ -69,6 +70,18 @@ impl CategoriesDb for MusicDb {
                 SELECT * FROM UNNEST($2::bigint[])
             )
             ON CONFLICT DO NOTHING;
+        ", track_id, &categories_ids)
+            .execute(tx)
+            .await?;
+        Ok(())
+    }
+    
+    async fn unlink_track_categories_with_transaction(tx: &mut PgConnection, track_id: i64, categories_ids: &[i64]) -> Result<(), sqlx::Error> {
+        sqlx::query!(r"
+            DELETE FROM tracks_categories 
+            WHERE
+                track_id = $1 AND
+                category_id NOT IN (SELECT * FROM UNNEST($2::bigint[]));
         ", track_id, &categories_ids)
             .execute(tx)
             .await?;
