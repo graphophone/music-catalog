@@ -16,5 +16,6 @@ CREATE TABLE IF NOT EXISTS categories (
 
 CREATE TABLE IF NOT EXISTS tracks_categories (
     track_id BIGINT REFERENCES tracks (id) ON DELETE CASCADE,
-    category_id BIGINT REFERENCES categories (id) ON DELETE CASCADE
+    category_id BIGINT REFERENCES categories (id) ON DELETE CASCADE,
+    UNIQUE (track_id, category_id)
 );
