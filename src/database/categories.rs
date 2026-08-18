@@ -1,11 +1,13 @@
+use sqlx::PgConnection;
+
 use crate::database::MusicDb;
 
 pub trait CategoriesDb {
     async fn get_categories_for_track(&self, track_id: i64) -> Result<Vec<CategoryInfo>, sqlx::Error>;
-    async fn create_category(&self, category_name: String) -> Result<(), sqlx::Error>;
+    async fn create_category(&self, category_name: String) -> Result<i64, sqlx::Error>;
     async fn update_category(&self, category_id: i64, new_category_name: String) -> Result<(), sqlx::Error>;
     async fn get_categories(&self, page_number: i32, page_size: i32) -> Result<Vec<CategoryInfo>, sqlx::Error>;
-    async fn link_track_categories(&self, track_id: i64, categories_ids: &[i64]) -> Result<(), sqlx::Error>;
+    async fn link_track_categories_with_transaction(tx: &mut PgConnection, track_id: i64, categories_ids: &[i64]) -> Result<(), sqlx::Error>;
 }
 
 impl CategoriesDb for MusicDb {
@@ -22,14 +24,15 @@ impl CategoriesDb for MusicDb {
         Ok(categories)
     }
 
-    async fn create_category(&self, category_name: String) -> Result<(), sqlx::Error> {
-        sqlx::query!(r"
+    async fn create_category(&self, category_name: String) -> Result<i64, sqlx::Error> {
+        let id = sqlx::query_scalar!(r"
             INSERT INTO categories (name)
-            VALUES ($1);
+            VALUES ($1)
+            RETURNING id;
         ", category_name)
-            .execute(&self.pool)
+            .fetch_one(&self.pool)
             .await?;
-        Ok(())
+        Ok(id)
     }
 
     async fn update_category(&self, category_id: i64, new_category_name: String) -> Result<(), sqlx::Error> {
@@ -58,7 +61,7 @@ impl CategoriesDb for MusicDb {
         Ok(categories)
     }
 
-    async fn link_track_categories(&self, track_id: i64, categories_ids: &[i64]) -> Result<(), sqlx::Error> {
+    async fn link_track_categories_with_transaction(tx: &mut PgConnection, track_id: i64, categories_ids: &[i64]) -> Result<(), sqlx::Error> {
         sqlx::query!(r"
             INSERT INTO tracks_categories (track_id, category_id)
             SELECT $1, *
@@ -67,7 +70,7 @@ impl CategoriesDb for MusicDb {
             )
             ON CONFLICT DO NOTHING;
         ", track_id, &categories_ids)
-            .execute(&self.pool)
+            .execute(tx)
             .await?;
         Ok(())
     }

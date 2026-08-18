@@ -77,8 +77,9 @@ impl TracksDb for MusicDb {
             .fetch_one(&mut *tx)
             .await?;
 
-        self.link_track_categories(id, &track_info.categories_ids)
-            .await?;
+        Self::link_track_categories_with_transaction(
+            &mut *tx, id, &track_info.categories_ids
+        ).await?;
 
         tx.commit().await?;
         Ok(id)
@@ -100,8 +101,9 @@ impl TracksDb for MusicDb {
             return Err(sqlx::Error::RowNotFound);
         }
 
-        self.link_track_categories(track_id, &track_info.categories_ids)
-            .await?;
+        Self::link_track_categories_with_transaction(
+            &mut *tx, track_id, &track_info.categories_ids
+        ).await?;
 
         tx.commit().await?;
         Ok(())
@@ -209,11 +211,14 @@ mod tests {
     #[sqlx::test]
     async fn test_save_track(pool: sqlx::PgPool) -> Result<()> {
         let db = MusicDb { pool };
+        let c_id1 = db.create_category("Category 1".to_string()).await?;
+        let c_id2 = db.create_category("Category 2".to_string()).await?;
+        let c_id3 = db.create_category("Category 3".to_string()).await?;
         let track_data1 = UploadTrackInfo {
             name: "test song 1".to_string(),
             description: None,
             user_id: 1,
-            categories_ids: vec![1, 2, 3],
+            categories_ids: vec![c_id1, c_id2, c_id3],
         };
 
         db.save_track_info(&track_data1).await?;
