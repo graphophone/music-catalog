@@ -1,27 +1,27 @@
 use tonic::{Request, Response, Status};
-use music_catalog::music_catalog_server::{MusicCatalog};
-use music_catalog::*;
+use tracks::tracks_server::{Tracks};
+use tracks::*;
 use crate::database::tracks::TracksDb;
 use crate::database::{self, MusicDb};
 
-pub mod music_catalog {
-    tonic::include_proto!("music_catalog");
+pub mod tracks {
+    tonic::include_proto!("tracks");
 }
 
-pub struct MusicCatalogService {
+pub struct TracksService {
     track_db: MusicDb,
 }
 
-impl MusicCatalogService {
-    pub fn build(track_db: MusicDb) -> MusicCatalogService {
-        MusicCatalogService {
+impl TracksService {
+    pub fn build(track_db: MusicDb) -> TracksService {
+        TracksService {
             track_db,
         }
     }
 }
 
 #[tonic::async_trait]
-impl MusicCatalog for MusicCatalogService {
+impl Tracks for TracksService {
     async fn get_full_track_info(&self, req: Request<GetTrackInfoRequest>) -> Result<Response<FullTrackInfo>, Status> {
         let req = req.into_inner();
 
