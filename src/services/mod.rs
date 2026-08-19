@@ -1,1 +1,2 @@
-pub mod music_catalog_service;
+pub mod tracks_service;
+pub mod categories_service;

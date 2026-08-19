@@ -1,31 +1,33 @@
+use std::sync::Arc;
+
 use tonic::{Request, Response, Status};
-use music_catalog::music_catalog_server::{MusicCatalog};
-use music_catalog::*;
+use tracks::tracks_server::{Tracks};
+use tracks::*;
 use crate::database::tracks::TracksDb;
 use crate::database::{self, MusicDb};
 
-pub mod music_catalog {
-    tonic::include_proto!("music_catalog");
+pub use tracks::tracks_server::TracksServer;
+
+pub mod tracks {
+    tonic::include_proto!("tracks");
 }
 
-pub struct MusicCatalogService {
-    track_db: MusicDb,
+pub struct TracksService {
+    music_db: Arc<MusicDb>,
 }
 
-impl MusicCatalogService {
-    pub fn build(track_db: MusicDb) -> MusicCatalogService {
-        MusicCatalogService {
-            track_db,
-        }
+impl TracksService {
+    pub fn build(music_db: Arc<MusicDb>) -> TracksService {
+        TracksService { music_db }
     }
 }
 
 #[tonic::async_trait]
-impl MusicCatalog for MusicCatalogService {
+impl Tracks for TracksService {
     async fn get_full_track_info(&self, req: Request<GetTrackInfoRequest>) -> Result<Response<FullTrackInfo>, Status> {
         let req = req.into_inner();
 
-        let query_res = self.track_db
+        let query_res = self.music_db
             .get_full_track_info(req.track_id)
             .await;
 
@@ -53,7 +55,7 @@ impl MusicCatalog for MusicCatalogService {
     async fn get_short_track_info(&self, req: Request<GetTrackInfoRequest>) -> Result<Response<ShortTrackInfo>, Status> {
         let req = req.into_inner();
 
-        let query_res = self.track_db
+        let query_res = self.music_db
             .get_short_track_info(req.track_id)
             .await;
 
@@ -83,7 +85,7 @@ impl MusicCatalog for MusicCatalogService {
             user_id: req.user_id,
             categories_ids: req.categories_ids,
         };
-        let query_res = self.track_db
+        let query_res = self.music_db
             .save_track_info(&track_info)
             .await;
 
@@ -101,7 +103,7 @@ impl MusicCatalog for MusicCatalogService {
             description: req.description,
             categories_ids: req.categories_ids,
         };
-        let query_res = self.track_db
+        let query_res = self.music_db
             .update_track_info(req.track_id, &track_info)
             .await;
 
@@ -115,7 +117,7 @@ impl MusicCatalog for MusicCatalogService {
     async fn update_track_thumbnail(&self, req: Request<UpdateTrackThumbnailRequest>) -> Result<Response<Empty>, Status> {
         let req = req.into_inner();
 
-        let query_res = self.track_db
+        let query_res = self.music_db
             .update_track_thumbnail(req.track_id, "placeholder url for now")
             .await;
 
@@ -129,7 +131,7 @@ impl MusicCatalog for MusicCatalogService {
     async fn remove_track_info(&self, req: Request<RemoveTrackInfoRequest>) -> Result<Response<Empty>, Status> {
         let req = req.into_inner();
 
-        let query_res = self.track_db
+        let query_res = self.music_db
             .remove_track_info(req.track_id)
             .await;
 
@@ -147,7 +149,7 @@ impl MusicCatalog for MusicCatalogService {
             audio_uri: req.audio_uri,
             duration_seconds: req.duration_seconds,
         };
-        let query_res = self.track_db
+        let query_res = self.music_db
             .link_track_audio(req.track_id, &link_info)
             .await;
 
@@ -161,7 +163,7 @@ impl MusicCatalog for MusicCatalogService {
     async fn generate_play_token(&self, req: Request<GeneratePlayTokenRequest>) -> Result<Response<PlayToken>, Status> {
         let req = req.into_inner();
 
-        let query_res = self.track_db
+        let query_res = self.music_db
             .register_play(req.track_id)
             .await;
 

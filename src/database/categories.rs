@@ -5,8 +5,8 @@ use crate::database::MusicDb;
 pub trait CategoriesDb {
     async fn get_categories_for_track(&self, track_id: i64) -> Result<Vec<CategoryInfo>, sqlx::Error>;
     async fn create_category(&self, category_name: String) -> Result<CategoryInfo, sqlx::Error>;
-    async fn update_category(&self, category_id: i64, new_category_name: String) -> Result<(), sqlx::Error>;
     async fn get_categories(&self, page_number: i32, page_size: i32) -> Result<Vec<CategoryInfo>, sqlx::Error>;
+    async fn get_categories_count(&self) -> Result<i64, sqlx::Error>;
     async fn link_track_categories_with_transaction(tx: &mut PgConnection, track_id: i64, categories_ids: &[i64]) -> Result<(), sqlx::Error>;
     async fn unlink_track_categories_with_transaction(tx: &mut PgConnection, track_id: i64, categories_ids: &[i64]) -> Result<(), sqlx::Error>;
 }
@@ -34,19 +34,6 @@ impl CategoriesDb for MusicDb {
             .fetch_one(&self.pool)
             .await?;
         Ok(category)
-    }
-
-    async fn update_category(&self, category_id: i64, new_category_name: String) -> Result<(), sqlx::Error> {
-        let res = sqlx::query!(r"
-            UPDATE categories SET name = $1
-            WHERE id = $2;
-        ", new_category_name, category_id)
-            .execute(&self.pool)
-            .await?;
-        if res.rows_affected() == 0 {
-            return Err(sqlx::Error::RowNotFound)
-        }
-        Ok(())
     }
 
     async fn get_categories(&self, page_number: i32, page_size: i32) -> Result<Vec<CategoryInfo>, sqlx::Error> {
@@ -86,6 +73,17 @@ impl CategoriesDb for MusicDb {
             .execute(tx)
             .await?;
         Ok(())
+    }
+    
+    async fn get_categories_count(&self) -> Result<i64, sqlx::Error> {
+        let count = sqlx::query_scalar!(r"
+            SELECT COUNT(*)
+            FROM categories;
+        ")
+            .fetch_one(&self.pool)
+            .await?
+            .unwrap_or(0);
+        Ok(count)
     }
 }
 
@@ -165,46 +163,13 @@ use tokio::task::JoinSet;
     }
 
     #[sqlx::test]
-    async fn test_update_category(pool: sqlx::PgPool) -> Result<()> {
-        let db = MusicDb { pool };
-        let (mut c1, mut c2) = tokio::try_join!(
-            db.create_category("Category 1".to_string()),
-            db.create_category("Category 2".to_string()),
-        )?;
-
-        let t1_cats = vec![c1.clone(), c2.clone()];
-        let track_data1 = UploadTrackInfo {
-            name: "test song 1".to_string(),
-            description: None,
-            user_id: 1,
-            categories_ids: t1_cats.iter().map(|c| c.id).collect(),
-        };
-        let t1_id = db.save_track_info(&track_data1).await?;
-
-        let new_c1_name = "new cat1 name".to_string();
-        db.update_category(c1.id, new_c1_name.clone()).await?;
-        let new_c2_name = "new cat2 name".to_string();
-        db.update_category(c2.id, new_c2_name.clone()).await?;
-
-        let mut categories1 = db.get_categories_for_track(t1_id).await?;
-        categories1.sort_by(|c1, c2| c1.id.cmp(&c2.id));
-        c1.name = new_c1_name;
-        c2.name = new_c2_name;
-        let mut t1_cats = vec![c1.clone(), c2.clone()];
-        t1_cats.sort_by(|c1, c2| c1.id.cmp(&c2.id));
-        assert_eq!(categories1, vec![c1, c2]);
-        
-        Ok(())
-    }
-
-    #[sqlx::test]
     async fn test_get_categories(pool: sqlx::PgPool) -> Result<()> {
         let db = MusicDb { pool };
         let db_arc = Arc::new(db.clone());
         let mut futures = JoinSet::new();
         for i in 0..20 {
             let db_arc = Arc::clone(&db_arc);
-            futures.spawn(async move { db_arc.as_ref().create_category(format!("Category {i}")).await });
+            futures.spawn(async move { db_arc.create_category(format!("Category {i}")).await });
         }
         let mut categories = vec![];
         while let Some(res) = futures.join_next().await {
@@ -234,7 +199,7 @@ use tokio::task::JoinSet;
         let mut futures = JoinSet::new();
         for i in 0..2 {
             let db_arc = Arc::clone(&db_arc);
-            futures.spawn(async move { db_arc.as_ref().create_category(format!("Category {i}")).await });
+            futures.spawn(async move { db_arc.create_category(format!("Category {i}")).await });
         }
         let mut categories = vec![];
         while let Some(res) = futures.join_next().await {
@@ -264,7 +229,7 @@ use tokio::task::JoinSet;
         let mut futures = JoinSet::new();
         for i in 0..4 {
             let db_arc = Arc::clone(&db_arc);
-            futures.spawn(async move { db_arc.as_ref().create_category(format!("Category {i}")).await });
+            futures.spawn(async move { db_arc.create_category(format!("Category {i}")).await });
         }
         let mut categories = vec![];
         while let Some(res) = futures.join_next().await {
@@ -354,6 +319,34 @@ use tokio::task::JoinSet;
         let mut expected_cats = vec![c1, c3];
         expected_cats.sort_by_key(|c| c.id);
         assert_eq!(categories, expected_cats);
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_get_categories_count(pool: sqlx::PgPool) -> Result<()> {
+        let db = MusicDb { pool };
+        tokio::try_join!(
+            db.create_category("Category 1".to_string()),
+            db.create_category("Category 2".to_string()),
+            db.create_category("Category 3".to_string()),
+        )?;
+
+        let count = db.get_categories_count().await?;
+        assert_eq!(count, 3);
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_get_categories_count_with_duplicate(pool: sqlx::PgPool) -> Result<()> {
+        let db = MusicDb { pool };
+        let _ = tokio::try_join!(
+            db.create_category("Category 1".to_string()),
+            db.create_category("Category 2".to_string()),
+            db.create_category("Category 2".to_string()),
+        );
+
+        let count = db.get_categories_count().await?;
+        assert_eq!(count, 2);
         Ok(())
     }
 }
