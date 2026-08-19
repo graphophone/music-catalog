@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use tonic::{Request, Response, Status, async_trait};
 use categories::categories_server::Categories;
-use crate::{database::{MusicDb, categories::CategoriesDb}, services::categories_service::categories::{CategoriesPage, CategoryInfo, CreateCategoryRequest, Empty, GetCategoriesRequest, UpdateCategoryRequest}};
+use crate::{database::{MusicDb, categories::CategoriesDb}, services::categories_service::categories::{CategoriesPage, CategoryInfo, CreateCategoryRequest, GetCategoriesRequest}};
 pub use categories::categories_server::CategoriesServer;
 
 pub mod categories {
@@ -34,17 +34,6 @@ impl Categories for CategoriesService {
             id: info.id,
             name: info.name,
         }))
-    }
-
-    async fn update_category(&self, req: Request<UpdateCategoryRequest>) -> Result<Response<Empty>, Status> {
-        let req = req.into_inner();
-        let res = self.music_db
-            .update_category(req.category_id, req.new_name)
-            .await;
-        if let Err(e) = res {
-            return Err(Status::from_error(Box::new(e)));
-        }
-        Ok(Response::new(Empty {}))
     }
 
     async fn get_categories(&self, req: Request<GetCategoriesRequest>) -> Result<Response<CategoriesPage>, Status> {
