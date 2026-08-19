@@ -216,7 +216,7 @@ use tokio::task::JoinSet;
         let mut futures = JoinSet::new();
         for i in 0..20 {
             let db_arc = Arc::clone(&db_arc);
-            futures.spawn(async move { db_arc.as_ref().create_category(format!("Category {i}")).await });
+            futures.spawn(async move { db_arc.create_category(format!("Category {i}")).await });
         }
         let mut categories = vec![];
         while let Some(res) = futures.join_next().await {
@@ -246,7 +246,7 @@ use tokio::task::JoinSet;
         let mut futures = JoinSet::new();
         for i in 0..2 {
             let db_arc = Arc::clone(&db_arc);
-            futures.spawn(async move { db_arc.as_ref().create_category(format!("Category {i}")).await });
+            futures.spawn(async move { db_arc.create_category(format!("Category {i}")).await });
         }
         let mut categories = vec![];
         while let Some(res) = futures.join_next().await {
@@ -276,7 +276,7 @@ use tokio::task::JoinSet;
         let mut futures = JoinSet::new();
         for i in 0..4 {
             let db_arc = Arc::clone(&db_arc);
-            futures.spawn(async move { db_arc.as_ref().create_category(format!("Category {i}")).await });
+            futures.spawn(async move { db_arc.create_category(format!("Category {i}")).await });
         }
         let mut categories = vec![];
         while let Some(res) = futures.join_next().await {
