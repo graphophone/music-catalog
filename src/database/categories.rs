@@ -7,6 +7,7 @@ pub trait CategoriesDb {
     async fn create_category(&self, category_name: String) -> Result<CategoryInfo, sqlx::Error>;
     async fn update_category(&self, category_id: i64, new_category_name: String) -> Result<(), sqlx::Error>;
     async fn get_categories(&self, page_number: i32, page_size: i32) -> Result<Vec<CategoryInfo>, sqlx::Error>;
+    async fn get_categories_count(&self) -> Result<i64, sqlx::Error>;
     async fn link_track_categories_with_transaction(tx: &mut PgConnection, track_id: i64, categories_ids: &[i64]) -> Result<(), sqlx::Error>;
     async fn unlink_track_categories_with_transaction(tx: &mut PgConnection, track_id: i64, categories_ids: &[i64]) -> Result<(), sqlx::Error>;
 }
@@ -86,6 +87,17 @@ impl CategoriesDb for MusicDb {
             .execute(tx)
             .await?;
         Ok(())
+    }
+    
+    async fn get_categories_count(&self) -> Result<i64, sqlx::Error> {
+        let count = sqlx::query_scalar!(r"
+            SELECT COUNT(*)
+            FROM categories;
+        ")
+            .fetch_one(&self.pool)
+            .await?
+            .unwrap_or(0);
+        Ok(count)
     }
 }
 
@@ -354,6 +366,34 @@ use tokio::task::JoinSet;
         let mut expected_cats = vec![c1, c3];
         expected_cats.sort_by_key(|c| c.id);
         assert_eq!(categories, expected_cats);
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_get_categories_count(pool: sqlx::PgPool) -> Result<()> {
+        let db = MusicDb { pool };
+        tokio::try_join!(
+            db.create_category("Category 1".to_string()),
+            db.create_category("Category 2".to_string()),
+            db.create_category("Category 3".to_string()),
+        )?;
+
+        let count = db.get_categories_count().await?;
+        assert_eq!(count, 3);
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_get_categories_count_with_duplicate(pool: sqlx::PgPool) -> Result<()> {
+        let db = MusicDb { pool };
+        let _ = tokio::try_join!(
+            db.create_category("Category 1".to_string()),
+            db.create_category("Category 2".to_string()),
+            db.create_category("Category 2".to_string()),
+        );
+
+        let count = db.get_categories_count().await?;
+        assert_eq!(count, 2);
         Ok(())
     }
 }
