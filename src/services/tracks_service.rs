@@ -178,8 +178,7 @@ impl Tracks for TracksService {
         let claims = token::Claims::new(audio_uri);
         let play_token = match claims.to_token(&self.play_token_key) {
             Ok(v) => v,
-            Err(_) => return Err(Status::not_found("TEST")),
-            // Err(e) => return Err(Status::from_error(Box::new(e))),
+            Err(e) => return Err(Status::from_error(Box::new(e))),
         };
         Ok(Response::new(PlayToken { play_token }))
     }
