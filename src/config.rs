@@ -5,6 +5,7 @@ use config::{Config as _Config, File};
 pub struct Config {
     pub postgres: PostgresConfig,
     pub service: ServiceConfig,
+    pub streaming: StreamingConfig,
 }
 
 impl Config {
@@ -29,4 +30,9 @@ pub struct PostgresConfig {
 pub struct ServiceConfig {
     pub address: String,
     pub port: u16,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct StreamingConfig {
+    pub play_token_key: String,
 }

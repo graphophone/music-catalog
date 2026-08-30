@@ -5,6 +5,7 @@ use tracks::tracks_server::{Tracks};
 use tracks::*;
 use crate::database::tracks::TracksDb;
 use crate::database::{self, MusicDb};
+use crate::token;
 
 pub use tracks::tracks_server::TracksServer;
 
@@ -14,11 +15,12 @@ pub mod tracks {
 
 pub struct TracksService {
     music_db: Arc<MusicDb>,
+    play_token_key: String,
 }
 
 impl TracksService {
-    pub fn build(music_db: Arc<MusicDb>) -> TracksService {
-        TracksService { music_db }
+    pub fn build(music_db: Arc<MusicDb>, play_token_key: String) -> TracksService {
+        TracksService { music_db, play_token_key }
     }
 }
 
@@ -166,13 +168,19 @@ impl Tracks for TracksService {
         let query_res = self.music_db
             .register_play(req.track_id)
             .await;
-
+        
         let audio_uri = match query_res {
             Ok(v) => v,
             Err(sqlx::Error::RowNotFound) => return Err(Status::not_found("track not found")),
             Err(e) => return Err(Status::from_error(Box::new(e))),
         };
 
-        Ok(Response::new(PlayToken { play_token: audio_uri }))
+        let claims = token::Claims::new(audio_uri);
+        let play_token = match claims.to_token(&self.play_token_key) {
+            Ok(v) => v,
+            Err(_) => return Err(Status::not_found("TEST")),
+            // Err(e) => return Err(Status::from_error(Box::new(e))),
+        };
+        Ok(Response::new(PlayToken { play_token }))
     }
 }

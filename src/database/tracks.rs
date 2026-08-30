@@ -139,7 +139,7 @@ impl TracksDb for MusicDb {
     }
 
     async fn link_track_audio(&self, track_id: i64, link_info: &LinkAudioInfo) -> Result<(), sqlx::Error> {
-        sqlx::query!(r"
+        let res = sqlx::query!(r"
             UPDATE tracks SET audio_uri = $1, duration_seconds = $2
             WHERE id = $3;",
             &link_info.audio_uri,
@@ -148,6 +148,10 @@ impl TracksDb for MusicDb {
         )
             .execute(&self.pool)
             .await?;
+
+        if res.rows_affected() == 0 {
+            return Err(sqlx::Error::RowNotFound);
+        }
         Ok(())
     }
 

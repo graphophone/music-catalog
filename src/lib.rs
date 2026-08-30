@@ -7,13 +7,17 @@ use crate::{database::MusicDb, services::{categories_service::{CategoriesServer,
 pub mod config;
 mod database;   
 pub mod services;
+pub mod token;
 
 pub async fn run(conf: &config::Config) -> Result<(), Box<dyn Error>> {
     let music_db = MusicDb::build(&conf).await?;
     let music_db = Arc::new(music_db);
 
     let addr: SocketAddr = format!("{}:{}", &conf.service.address, conf.service.port).parse()?;
-    let tracks_service = TracksService::build(Arc::clone(&music_db));
+    let tracks_service = TracksService::build(
+        Arc::clone(&music_db),
+        conf.streaming.play_token_key.clone(),
+    );
     let categories_service = CategoriesService::build(Arc::clone(&music_db));
 
     println!("serving music catalog grpc api: {}", &addr);
