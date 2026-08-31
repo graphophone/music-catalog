@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use tonic::{Request, Response, Status, async_trait};
-use crate::{database::{MusicDb, likes::LikesDb}, services::likes_service::likes::{DislikeTrackRequest, Empty, GetUserLikedRequest, LikeTrackRequest, LikedPage, LikedTrackInfo, likes_server::Likes}};
+use crate::{database::{MusicDb, likes::LikesDb}, services::likes_service::likes::{Empty, GetUserLikedRequest, LikeTrackRequest, LikedPage, LikedTrackInfo, likes_server::Likes}};
 
 pub mod likes {
     tonic::include_proto!("likes");
@@ -22,15 +22,6 @@ impl Likes for LikesService {
     async fn like_track(&self, req: Request<LikeTrackRequest>) -> Result<Response<Empty>, Status> {
         let req = req.into_inner();
         let res = self.music_db.like_track(req.user_id, req.track_id).await;
-        match res {
-            Ok(_) => Ok(Response::new(Empty {})),
-            Err(e) => Err(Status::from_error(Box::new(e))),
-        }
-    }
-
-    async fn dislike_track(&self, req: Request<DislikeTrackRequest>) -> Result<Response<Empty>, Status> {
-        let req = req.into_inner();
-        let res = self.music_db.dislike_track(req.user_id, req.track_id).await;
         match res {
             Ok(_) => Ok(Response::new(Empty {})),
             Err(e) => Err(Status::from_error(Box::new(e))),

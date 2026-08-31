@@ -52,6 +52,8 @@ impl Tracks for TracksService {
                 .map(|c| CategoryInfo { id: c.id, name: c.name })
                 .collect(),
         };
+
+        dbg!(res.clone());
         Ok(Response::new(res))
     }
 

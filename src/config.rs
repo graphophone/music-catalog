@@ -4,7 +4,6 @@ use config::{Config as _Config, File};
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub postgres: PostgresConfig,
-    pub service: ServiceConfig,
     pub streaming: StreamingConfig,
 }
 
@@ -24,12 +23,6 @@ pub struct PostgresConfig {
     pub user: String,
     pub password: String,
     pub database: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ServiceConfig {
-    pub address: String,
-    pub port: u16,
 }
 
 #[derive(Debug, Deserialize)]

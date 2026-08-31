@@ -4,18 +4,12 @@ package likes;
 
 service Likes {
     rpc like_track(LikeTrackRequest) returns (Empty);
-    rpc dislike_track(DislikeTrackRequest) returns (Empty);
     rpc get_user_liked(GetUserLikedRequest) returns (LikedPage);
 }
 
 message Empty {}
 
 message LikeTrackRequest {
-    int64 user_id = 1;
-    int64 track_id = 2;
-}
-
-message DislikeTrackRequest {
     int64 user_id = 1;
     int64 track_id = 2;
 }
