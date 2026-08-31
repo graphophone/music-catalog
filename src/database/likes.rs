@@ -2,6 +2,7 @@ use crate::database::MusicDb;
 
 pub trait LikesDb {
     async fn like_track(&self, user_id: i64, track_id: i64) -> Result<(), sqlx::Error>;
+    async fn unlike_track(&self, user_id: i64, track_id: i64) -> Result<(), sqlx::Error>;
     async fn get_liked_tracks_for_user(&self, user_id: i64, page_number: i32, page_size: i32) -> Result<Vec<LikedTrackInfo>, sqlx::Error>;
     async fn get_liked_tracks_count_for_user(&self, user_id: i64) -> Result<i64, sqlx::Error>;
 }
@@ -9,6 +10,13 @@ pub trait LikesDb {
 impl LikesDb for MusicDb {
     async fn like_track(&self, user_id: i64, track_id: i64) -> Result<(), sqlx::Error> {
         sqlx::query!("INSERT INTO track_likes (user_id, track_id) VALUES ($1, $2);", user_id, track_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    async fn unlike_track(&self, user_id: i64, track_id: i64) -> Result<(), sqlx::Error> {
+        sqlx::query!("DELETE FROM track_likes WHERE user_id = $1 AND track_id = $2;", user_id, track_id)
             .execute(&self.pool)
             .await?;
         Ok(())
@@ -68,6 +76,21 @@ use super::MusicDb;
         };
         let track_id = db.save_track_info(&track_data1).await?;
         db.like_track(1, track_id).await?;
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_unlike_track(pool: sqlx::PgPool) -> anyhow::Result<()> {
+        let db = MusicDb { pool };
+        let track_data1 = UploadTrackInfo {
+            name: "test song 1".to_string(),
+            description: None,
+            uploader_id: 1,
+            categories_ids: vec![],
+        };
+        let track_id = db.save_track_info(&track_data1).await?;
+        db.like_track(1, track_id).await?;
+        db.unlike_track(1, track_id).await?;
         Ok(())
     }
 
@@ -157,6 +180,26 @@ use super::MusicDb;
         db.like_track(1, track2_id).await?;
         let count = db.get_liked_tracks_count_for_user(1).await?;
         assert_eq!(count, 2);
+        Ok(())
+    }
+
+    #[sqlx::test]
+    async fn test_get_user_liked_count_after_unlike(pool: sqlx::PgPool) -> anyhow::Result<()> {
+        let db = MusicDb { pool };
+        let track_data1 = UploadTrackInfo {
+            name: "test song 1".to_string(),
+            description: Some("test description 1".to_string()),
+            uploader_id: 1,
+            categories_ids: vec![],
+        };
+        let track1_id = db.save_track_info(&track_data1).await?;
+
+        db.like_track(1, track1_id).await?;
+        let count = db.get_liked_tracks_count_for_user(1).await?;
+        assert_eq!(count, 1);
+        db.unlike_track(1, track1_id).await?;
+        let count = db.get_liked_tracks_count_for_user(1).await?;
+        assert_eq!(count, 0);
         Ok(())
     }
 }
