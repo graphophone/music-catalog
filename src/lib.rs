@@ -2,7 +2,7 @@ use std::{error::Error, net::SocketAddr, sync::Arc};
 
 use tonic::transport::Server;
 
-use crate::{database::MusicDb, services::{categories_service::{CategoriesServer, CategoriesService}, tracks_service::{TracksServer, TracksService}}};
+use crate::{database::MusicDb, services::{categories_service::{CategoriesServer, CategoriesService}, likes_service::{LikesService, likes::likes_server::LikesServer}, tracks_service::{TracksServer, TracksService}}};
 
 pub mod config;
 mod database;   
@@ -19,11 +19,13 @@ pub async fn run(conf: &config::Config) -> Result<(), Box<dyn Error>> {
         conf.streaming.play_token_key.clone(),
     );
     let categories_service = CategoriesService::build(Arc::clone(&music_db));
+    let likes_service = LikesService::build(Arc::clone(&music_db));
 
     println!("serving music catalog grpc api: {}", &addr);
     Server::builder()
         .add_service(TracksServer::new(tracks_service))
         .add_service(CategoriesServer::new(categories_service))
+        .add_service(LikesServer::new(likes_service))
         .serve(addr)
         .await?;
     println!("music catalog server is down");
