@@ -22,7 +22,7 @@ impl TracksDb for MusicDb {
                 thumbnail_url,
                 duration_seconds,
                 play_count,
-                T.user_id
+                T.uploader_id
             FROM tracks T
             WHERE T.id = $1;",
             track_id,
@@ -42,7 +42,7 @@ impl TracksDb for MusicDb {
             thumbnail_url: track_info.thumbnail_url,
             duration_seconds: track_info.duration_seconds,
             play_count: track_info.play_count,
-            user_id: track_info.user_id,
+            uploader_id: track_info.uploader_id,
             categories: track_categories,
         };
         Ok(res)
@@ -53,12 +53,12 @@ impl TracksDb for MusicDb {
         
         let id: i64 = sqlx::query_scalar!(r"
             INSERT INTO tracks (
-                name, description, user_id
+                name, description, uploader_id
             ) VALUES ($1, $2, $3)
             RETURNING id;",
             &track_info.name,
             track_info.description,
-            track_info.user_id,
+            track_info.uploader_id,
         )
             .fetch_one(&mut *tx)
             .await?;
@@ -165,25 +165,15 @@ pub struct FullTrackInfo {
     pub thumbnail_url: Option<String>,
     pub duration_seconds: Option<i64>,
     pub play_count: i64,
-    pub user_id: i64,
+    pub uploader_id: i64,
     pub categories: Vec<CategoryInfo>,
-}
-
-#[derive(sqlx::FromRow, Debug, PartialEq)]
-pub struct ShortTrackInfo {
-    pub id: i64,
-    pub name: String,
-    pub thumbnail_url: Option<String>,
-    pub duration_seconds: Option<i64>,
-    pub play_count: i64,
-    pub user_id: i64,
 }
 
 pub struct UploadTrackInfo {
     pub name: String,
     pub description: Option<String>,
     pub categories_ids: Vec<i64>,
-    pub user_id: i64,
+    pub uploader_id: i64,
 }
 
 pub struct UpdateTrackInfo {
@@ -211,7 +201,7 @@ mod tests {
         let track_data1 = UploadTrackInfo {
             name: "test song 1".to_string(),
             description: None,
-            user_id: 1,
+            uploader_id: 1,
             categories_ids: vec![c1.id, c2.id, c3.id],
         };
 
@@ -225,7 +215,7 @@ mod tests {
         let track_data1 = UploadTrackInfo {
             name: "test song 1".to_string(),
             description: Some("test description 1".to_string()),
-            user_id: 1,
+            uploader_id: 1,
             categories_ids: vec![],
         };
 
@@ -238,7 +228,7 @@ mod tests {
             thumbnail_url: None,
             duration_seconds: None,
             play_count: 0,
-            user_id: track_data1.user_id,
+            uploader_id: track_data1.uploader_id,
             description: track_data1.description,
             categories: vec![],
         });
@@ -255,7 +245,7 @@ mod tests {
         let track_data1 = UploadTrackInfo {
             name: "test song 1".to_string(),
             description: None,
-            user_id: 1,
+            uploader_id: 1,
             categories_ids: vec![c1.id, c2.id, c3.id],
         };
         let update_track1 = UpdateTrackInfo {
@@ -276,7 +266,7 @@ mod tests {
             thumbnail_url: Some(thumbnail_url.to_string()),
             duration_seconds: None,
             play_count: 0,
-            user_id: track_data1.user_id,
+            uploader_id: track_data1.uploader_id,
             description: update_track1.description,
             categories: vec![c2, c4],
         });
@@ -289,7 +279,7 @@ mod tests {
         let track_data1 = UploadTrackInfo {
             name: "test song 1".to_string(),
             description: Some("test description 1".to_string()),
-            user_id: 1,
+            uploader_id: 1,
             categories_ids: vec![],
         };
 
@@ -309,7 +299,7 @@ mod tests {
         let track_data1 = UploadTrackInfo {
             name: "test song 1".to_string(),
             description: Some("test description 1".to_string()),
-            user_id: 1,
+            uploader_id: 1,
             categories_ids: vec![],
         };
         let audio_info = LinkAudioInfo {
@@ -327,7 +317,7 @@ mod tests {
             thumbnail_url: None,
             duration_seconds: Some(audio_info.duration_seconds),
             play_count: 0,
-            user_id: track_data1.user_id,
+            uploader_id: track_data1.uploader_id,
             description: track_data1.description,
             categories: vec![],
         });
@@ -340,7 +330,7 @@ mod tests {
         let track_data1 = UploadTrackInfo {
             name: "test song 1".to_string(),
             description: Some("test description 1".to_string()),
-            user_id: 1,
+            uploader_id: 1,
             categories_ids: vec![],
         };
         let audio_info = LinkAudioInfo {
@@ -362,7 +352,7 @@ mod tests {
         let track_data1 = UploadTrackInfo {
             name: "test song 1".to_string(),
             description: Some("test description 1".to_string()),
-            user_id: 1,
+            uploader_id: 1,
             categories_ids: vec![],
         };
 

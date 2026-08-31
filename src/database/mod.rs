@@ -4,6 +4,7 @@ use crate::config::Config;
 
 pub mod tracks;
 pub mod categories;
+pub mod likes;
 
 #[derive(Clone)]
 pub struct MusicDb {

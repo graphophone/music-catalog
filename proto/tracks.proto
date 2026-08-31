@@ -21,7 +21,7 @@ message GetTrackInfoRequest {
 message UploadTrackInfoRequest {
     string name = 1;
     optional string description = 2;
-    int64 user_id = 3;
+    int64 uploader_id = 3;
     repeated int64 categories_ids = 4;
 }
 
@@ -59,7 +59,7 @@ message FullTrackInfo {
     optional int64 duration_seconds = 5;
     int64 play_count = 6;
     int64 like_count = 7;
-    int64 user_id = 8;
+    int64 uploader_id = 8;
     repeated CategoryInfo categories = 9;
 }
 

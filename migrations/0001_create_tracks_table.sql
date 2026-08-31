@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS tracks (
     audio_uri TEXT,
     duration_seconds BIGINT,
     play_count BIGINT NOT NULL DEFAULT 0,
-    user_id BIGINT NOT NULL
+    uploader_id BIGINT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS categories (
