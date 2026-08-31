@@ -16,22 +16,29 @@ impl TracksDb for MusicDb {
 
         let track_info = sqlx::query!(r"
             SELECT
-                T.id,
+                id,
                 name,
                 description,
                 thumbnail_url,
                 duration_seconds,
                 play_count,
-                T.uploader_id
+                COUNT(user_id) like_count,
+                uploader_id
             FROM tracks T
-            WHERE T.id = $1;",
+            LEFT JOIN track_likes TL
+            ON T.id = TL.track_id
+            WHERE T.id = $1
+            GROUP BY id,
+                name,
+                description,
+                thumbnail_url,
+                duration_seconds,
+                play_count,
+                uploader_id;",
             track_id,
-        )
-            .fetch_one(&mut *tx)
-            .await?;
-        
-        let track_categories = self.get_categories_for_track(track_id)
-            .await?;
+        ).fetch_one(&mut *tx);
+        let track_categories = self.get_categories_for_track(track_id);
+        let (track_info, track_categories) = tokio::try_join!(track_info, track_categories)?;
         
         tx.commit().await?;
 
@@ -42,6 +49,7 @@ impl TracksDb for MusicDb {
             thumbnail_url: track_info.thumbnail_url,
             duration_seconds: track_info.duration_seconds,
             play_count: track_info.play_count,
+            like_count: track_info.like_count.unwrap_or_default(),
             uploader_id: track_info.uploader_id,
             categories: track_categories,
         };
@@ -165,6 +173,7 @@ pub struct FullTrackInfo {
     pub thumbnail_url: Option<String>,
     pub duration_seconds: Option<i64>,
     pub play_count: i64,
+    pub like_count: i64,
     pub uploader_id: i64,
     pub categories: Vec<CategoryInfo>,
 }
@@ -228,6 +237,7 @@ mod tests {
             thumbnail_url: None,
             duration_seconds: None,
             play_count: 0,
+            like_count: 0,
             uploader_id: track_data1.uploader_id,
             description: track_data1.description,
             categories: vec![],
@@ -266,6 +276,7 @@ mod tests {
             thumbnail_url: Some(thumbnail_url.to_string()),
             duration_seconds: None,
             play_count: 0,
+            like_count: 0,
             uploader_id: track_data1.uploader_id,
             description: update_track1.description,
             categories: vec![c2, c4],
@@ -317,6 +328,7 @@ mod tests {
             thumbnail_url: None,
             duration_seconds: Some(audio_info.duration_seconds),
             play_count: 0,
+            like_count: 0,
             uploader_id: track_data1.uploader_id,
             description: track_data1.description,
             categories: vec![],
