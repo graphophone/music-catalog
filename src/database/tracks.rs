@@ -2,7 +2,6 @@ use crate::database::{MusicDb, categories::{CategoriesDb, CategoryInfo}};
 
 pub trait TracksDb {
     async fn get_full_track_info(&self, track_id: i64) -> Result<FullTrackInfo, sqlx::Error>;
-    async fn get_short_track_info(&self, track_id: i64) -> Result<ShortTrackInfo, sqlx::Error>;
     async fn save_track_info(&self, track_info: &UploadTrackInfo) -> Result<i64, sqlx::Error>;
     async fn update_track_info(&self, track_id: i64, track_info: &UpdateTrackInfo) -> Result<(), sqlx::Error>;
     async fn update_track_thumbnail(&self, track_id: i64, thumbnail_url: &str) -> Result<(), sqlx::Error>;
@@ -46,19 +45,6 @@ impl TracksDb for MusicDb {
             user_id: track_info.user_id,
             categories: track_categories,
         };
-        Ok(res)
-    }
-
-    async fn get_short_track_info(&self, track_id: i64) -> Result<ShortTrackInfo, sqlx::Error> {
-        let res = sqlx::query_as!(ShortTrackInfo, r"
-            SELECT
-                id, name, thumbnail_url, duration_seconds, play_count, user_id
-            FROM tracks
-            WHERE id = $1;",
-            track_id
-        )
-            .fetch_one(&self.pool)
-            .await?;
         Ok(res)
     }
 
@@ -230,30 +216,6 @@ mod tests {
         };
 
         db.save_track_info(&track_data1).await?;
-        Ok(())
-    }
-
-    #[sqlx::test]
-    async fn test_get_short_track(pool: sqlx::PgPool) -> Result<()> {
-        let db = MusicDb { pool };
-        let track_data1 = UploadTrackInfo {
-            name: "test song 1".to_string(),
-            description: Some("test description 1".to_string()),
-            user_id: 1,
-            categories_ids: vec![],
-        };
-
-        let id1 = db.save_track_info(&track_data1).await?;
-        let short_data = db.get_short_track_info(id1).await?;
-
-        assert_eq!(short_data, ShortTrackInfo {
-            id: id1,
-            name: track_data1.name,
-            thumbnail_url: None,
-            duration_seconds: None,
-            play_count: 0,
-            user_id: track_data1.user_id,
-        });
         Ok(())
     }
 

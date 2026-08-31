@@ -19,3 +19,10 @@ CREATE TABLE IF NOT EXISTS tracks_categories (
     category_id BIGINT REFERENCES categories (id) ON DELETE CASCADE,
     UNIQUE (track_id, category_id)
 );
+
+CREATE TABLE IF NOT EXISTS track_likes (
+    user_id BIGINT NOT NULL,
+    track_id BIGINT REFERENCES tracks (id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+    UNIQUE (user_id, track_id)
+);
