@@ -159,4 +159,29 @@ use super::MusicDb;
         assert_eq!(liked_tracks.len(), 0);
         Ok(())
     }
+
+    #[sqlx::test]
+    async fn test_get_user_liked_count(pool: sqlx::PgPool) -> anyhow::Result<()> {
+        let db = MusicDb { pool };
+        let track_data1 = UploadTrackInfo {
+            name: "test song 1".to_string(),
+            description: Some("test description 1".to_string()),
+            uploader_id: 1,
+            categories_ids: vec![],
+        };
+        let track_data2 = UploadTrackInfo {
+            name: "test song 1".to_string(),
+            description: Some("test description 1".to_string()),
+            uploader_id: 1,
+            categories_ids: vec![],
+        };
+        let track1_id = db.save_track_info(&track_data1).await?;
+        let track2_id = db.save_track_info(&track_data2).await?;
+
+        db.like_track(1, track1_id).await?;
+        db.like_track(1, track2_id).await?;
+        let count = db.get_liked_tracks_count_for_user(1).await?;
+        assert_eq!(count, 2);
+        Ok(())
+    }
 }
