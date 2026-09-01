@@ -46,35 +46,14 @@ impl Tracks for TracksService {
             thumbnail_url: track_info.thumbnail_url,
             duration_seconds: track_info.duration_seconds,
             play_count: track_info.play_count,
-            user_id: track_info.user_id,
+            like_count: track_info.like_count,
+            uploader_id: track_info.uploader_id,
             categories: track_info.categories.into_iter()
                 .map(|c| CategoryInfo { id: c.id, name: c.name })
                 .collect(),
         };
-        Ok(Response::new(res))
-    }
 
-    async fn get_short_track_info(&self, req: Request<GetTrackInfoRequest>) -> Result<Response<ShortTrackInfo>, Status> {
-        let req = req.into_inner();
-
-        let query_res = self.music_db
-            .get_short_track_info(req.track_id)
-            .await;
-
-        let track_info = match query_res {
-            Ok(v) => v,
-            Err(sqlx::Error::RowNotFound) => return Err(Status::not_found("track not found")),
-            Err(e) => return Err(Status::from_error(Box::new(e))),
-        };
-
-        let res = ShortTrackInfo {
-            id: track_info.id,
-            name: track_info.name,
-            thumbnail_url: track_info.thumbnail_url,
-            duration_seconds: track_info.duration_seconds,
-            play_count: track_info.play_count,
-            user_id: track_info.user_id,
-        };
+        dbg!(res.clone());
         Ok(Response::new(res))
     }
 
@@ -84,7 +63,7 @@ impl Tracks for TracksService {
         let track_info = database::tracks::UploadTrackInfo {
             name: req.name,
             description: req.description,
-            user_id: req.user_id,
+            uploader_id: req.uploader_id,
             categories_ids: req.categories_ids,
         };
         let query_res = self.music_db

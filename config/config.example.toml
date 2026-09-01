@@ -5,9 +5,5 @@ user = "user"
 password = "my-postgres-pass"
 database = "music-catalog-db"
 
-[service]
-address = "0.0.0.0"
-port = 8080
-
 [streaming]
 play_token_key = "some long base64 key"

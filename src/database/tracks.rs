@@ -2,7 +2,6 @@ use crate::database::{MusicDb, categories::{CategoriesDb, CategoryInfo}};
 
 pub trait TracksDb {
     async fn get_full_track_info(&self, track_id: i64) -> Result<FullTrackInfo, sqlx::Error>;
-    async fn get_short_track_info(&self, track_id: i64) -> Result<ShortTrackInfo, sqlx::Error>;
     async fn save_track_info(&self, track_info: &UploadTrackInfo) -> Result<i64, sqlx::Error>;
     async fn update_track_info(&self, track_id: i64, track_info: &UpdateTrackInfo) -> Result<(), sqlx::Error>;
     async fn update_track_thumbnail(&self, track_id: i64, thumbnail_url: &str) -> Result<(), sqlx::Error>;
@@ -17,22 +16,29 @@ impl TracksDb for MusicDb {
 
         let track_info = sqlx::query!(r"
             SELECT
-                T.id,
+                id,
                 name,
                 description,
                 thumbnail_url,
                 duration_seconds,
                 play_count,
-                T.user_id
+                COUNT(user_id) like_count,
+                uploader_id
             FROM tracks T
-            WHERE T.id = $1;",
+            LEFT JOIN track_likes TL
+            ON T.id = TL.track_id
+            WHERE T.id = $1
+            GROUP BY id,
+                name,
+                description,
+                thumbnail_url,
+                duration_seconds,
+                play_count,
+                uploader_id;",
             track_id,
-        )
-            .fetch_one(&mut *tx)
-            .await?;
-        
-        let track_categories = self.get_categories_for_track(track_id)
-            .await?;
+        ).fetch_one(&mut *tx);
+        let track_categories = self.get_categories_for_track(track_id);
+        let (track_info, track_categories) = tokio::try_join!(track_info, track_categories)?;
         
         tx.commit().await?;
 
@@ -43,22 +49,10 @@ impl TracksDb for MusicDb {
             thumbnail_url: track_info.thumbnail_url,
             duration_seconds: track_info.duration_seconds,
             play_count: track_info.play_count,
-            user_id: track_info.user_id,
+            like_count: track_info.like_count.unwrap_or_default(),
+            uploader_id: track_info.uploader_id,
             categories: track_categories,
         };
-        Ok(res)
-    }
-
-    async fn get_short_track_info(&self, track_id: i64) -> Result<ShortTrackInfo, sqlx::Error> {
-        let res = sqlx::query_as!(ShortTrackInfo, r"
-            SELECT
-                id, name, thumbnail_url, duration_seconds, play_count, user_id
-            FROM tracks
-            WHERE id = $1;",
-            track_id
-        )
-            .fetch_one(&self.pool)
-            .await?;
         Ok(res)
     }
 
@@ -67,12 +61,12 @@ impl TracksDb for MusicDb {
         
         let id: i64 = sqlx::query_scalar!(r"
             INSERT INTO tracks (
-                name, description, user_id
+                name, description, uploader_id
             ) VALUES ($1, $2, $3)
             RETURNING id;",
             &track_info.name,
             track_info.description,
-            track_info.user_id,
+            track_info.uploader_id,
         )
             .fetch_one(&mut *tx)
             .await?;
@@ -179,25 +173,16 @@ pub struct FullTrackInfo {
     pub thumbnail_url: Option<String>,
     pub duration_seconds: Option<i64>,
     pub play_count: i64,
-    pub user_id: i64,
+    pub like_count: i64,
+    pub uploader_id: i64,
     pub categories: Vec<CategoryInfo>,
-}
-
-#[derive(sqlx::FromRow, Debug, PartialEq)]
-pub struct ShortTrackInfo {
-    pub id: i64,
-    pub name: String,
-    pub thumbnail_url: Option<String>,
-    pub duration_seconds: Option<i64>,
-    pub play_count: i64,
-    pub user_id: i64,
 }
 
 pub struct UploadTrackInfo {
     pub name: String,
     pub description: Option<String>,
     pub categories_ids: Vec<i64>,
-    pub user_id: i64,
+    pub uploader_id: i64,
 }
 
 pub struct UpdateTrackInfo {
@@ -225,35 +210,11 @@ mod tests {
         let track_data1 = UploadTrackInfo {
             name: "test song 1".to_string(),
             description: None,
-            user_id: 1,
+            uploader_id: 1,
             categories_ids: vec![c1.id, c2.id, c3.id],
         };
 
         db.save_track_info(&track_data1).await?;
-        Ok(())
-    }
-
-    #[sqlx::test]
-    async fn test_get_short_track(pool: sqlx::PgPool) -> Result<()> {
-        let db = MusicDb { pool };
-        let track_data1 = UploadTrackInfo {
-            name: "test song 1".to_string(),
-            description: Some("test description 1".to_string()),
-            user_id: 1,
-            categories_ids: vec![],
-        };
-
-        let id1 = db.save_track_info(&track_data1).await?;
-        let short_data = db.get_short_track_info(id1).await?;
-
-        assert_eq!(short_data, ShortTrackInfo {
-            id: id1,
-            name: track_data1.name,
-            thumbnail_url: None,
-            duration_seconds: None,
-            play_count: 0,
-            user_id: track_data1.user_id,
-        });
         Ok(())
     }
 
@@ -263,7 +224,7 @@ mod tests {
         let track_data1 = UploadTrackInfo {
             name: "test song 1".to_string(),
             description: Some("test description 1".to_string()),
-            user_id: 1,
+            uploader_id: 1,
             categories_ids: vec![],
         };
 
@@ -276,7 +237,8 @@ mod tests {
             thumbnail_url: None,
             duration_seconds: None,
             play_count: 0,
-            user_id: track_data1.user_id,
+            like_count: 0,
+            uploader_id: track_data1.uploader_id,
             description: track_data1.description,
             categories: vec![],
         });
@@ -293,7 +255,7 @@ mod tests {
         let track_data1 = UploadTrackInfo {
             name: "test song 1".to_string(),
             description: None,
-            user_id: 1,
+            uploader_id: 1,
             categories_ids: vec![c1.id, c2.id, c3.id],
         };
         let update_track1 = UpdateTrackInfo {
@@ -314,7 +276,8 @@ mod tests {
             thumbnail_url: Some(thumbnail_url.to_string()),
             duration_seconds: None,
             play_count: 0,
-            user_id: track_data1.user_id,
+            like_count: 0,
+            uploader_id: track_data1.uploader_id,
             description: update_track1.description,
             categories: vec![c2, c4],
         });
@@ -327,7 +290,7 @@ mod tests {
         let track_data1 = UploadTrackInfo {
             name: "test song 1".to_string(),
             description: Some("test description 1".to_string()),
-            user_id: 1,
+            uploader_id: 1,
             categories_ids: vec![],
         };
 
@@ -347,7 +310,7 @@ mod tests {
         let track_data1 = UploadTrackInfo {
             name: "test song 1".to_string(),
             description: Some("test description 1".to_string()),
-            user_id: 1,
+            uploader_id: 1,
             categories_ids: vec![],
         };
         let audio_info = LinkAudioInfo {
@@ -365,7 +328,8 @@ mod tests {
             thumbnail_url: None,
             duration_seconds: Some(audio_info.duration_seconds),
             play_count: 0,
-            user_id: track_data1.user_id,
+            like_count: 0,
+            uploader_id: track_data1.uploader_id,
             description: track_data1.description,
             categories: vec![],
         });
@@ -378,7 +342,7 @@ mod tests {
         let track_data1 = UploadTrackInfo {
             name: "test song 1".to_string(),
             description: Some("test description 1".to_string()),
-            user_id: 1,
+            uploader_id: 1,
             categories_ids: vec![],
         };
         let audio_info = LinkAudioInfo {
@@ -400,7 +364,7 @@ mod tests {
         let track_data1 = UploadTrackInfo {
             name: "test song 1".to_string(),
             description: Some("test description 1".to_string()),
-            user_id: 1,
+            uploader_id: 1,
             categories_ids: vec![],
         };
 

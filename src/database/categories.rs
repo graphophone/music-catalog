@@ -137,7 +137,7 @@ use tokio::task::JoinSet;
         let track_data1 = UploadTrackInfo {
             name: "test song 1".to_string(),
             description: None,
-            user_id: 1,
+            uploader_id: 1,
             categories_ids: t1_cats.iter().map(|c| c.id).collect(),
         };
         let t1_id = db.save_track_info(&track_data1).await?;
@@ -146,7 +146,7 @@ use tokio::task::JoinSet;
         let track_data2 = UploadTrackInfo {
             name: "test song 2".to_string(),
             description: Some("test descr".to_string()),
-            user_id: 2,
+            uploader_id: 2,
             categories_ids: t2_cats.iter().map(|c| c.id).collect(),
         };
         let t2_id = db.save_track_info(&track_data2).await?;
@@ -257,7 +257,7 @@ use tokio::task::JoinSet;
         let track_data1 = UploadTrackInfo {
             name: "test song 1".to_string(),
             description: Some("test description 1".to_string()),
-            user_id: 1,
+            uploader_id: 1,
             categories_ids: vec![c1.id, c2.id],
         };
         let t_id = db.save_track_info(&track_data1).await?;
@@ -292,7 +292,7 @@ use tokio::task::JoinSet;
         let track_data1 = UploadTrackInfo {
             name: "test song 1".to_string(),
             description: Some("test description 1".to_string()),
-            user_id: 1,
+            uploader_id: 1,
             categories_ids: vec![c1.id, c2.id],
         };
         let t_id = db.save_track_info(&track_data1).await?;

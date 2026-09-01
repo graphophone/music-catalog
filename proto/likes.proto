@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package likes;
+
+service Likes {
+    rpc like_track(LikeTrackRequest) returns (Empty);
+    rpc unlike_track(UnlikeTrackRequest) returns (Empty);
+    rpc get_user_liked(GetUserLikedRequest) returns (LikedPage);
+}
+
+message Empty {}
+
+message LikeTrackRequest {
+    int64 user_id = 1;
+    int64 track_id = 2;
+}
+
+message UnlikeTrackRequest {
+    int64 user_id = 1;
+    int64 track_id = 2;
+}
+
+message GetUserLikedRequest {
+    int64 user_id = 1;
+    int32 page_number = 2;
+    int32 page_size = 3;
+}
+
+message LikedPage {
+    repeated LikedTrackInfo liked_tracks = 1;
+    int64 total_count = 2;
+}
+
+message LikedTrackInfo {
+    int64 id = 1;
+    string name = 2;
+    optional string thumbnail_url = 3;
+    optional int64 duration_seconds = 4;
+    int64 play_count = 5;
+}
