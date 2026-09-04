@@ -6,11 +6,11 @@ RUN apk add protoc
 COPY . .
 
 ARG SQLX_OFFLINE=true
-RUN cargo build
+RUN cargo build --release
 
 FROM scratch
 
-COPY --from=build /app/target/debug/music-catalog .
+COPY --from=build /app/target/release/music-catalog .
 COPY migrations migrations
 COPY config config
 
