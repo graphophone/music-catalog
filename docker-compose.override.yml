@@ -1,11 +1,11 @@
 services:
   postgres:
     ports:
-      - "5432:5432"
+      - "14431:5432"
   pg-admin:
     image: dpage/pgadmin4:9.15
     ports:
-      - "15432:80"
+      - "14432:80"
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@mail.com
       PGADMIN_DEFAULT_PASSWORD: admin

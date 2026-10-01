@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS tracks (
     description TEXT,
     thumbnail_url TEXT,
     audio_uri TEXT,
+    upload_status TEXT NOT NULL DEFAULT 'not_uploaded',
     duration_seconds BIGINT,
     play_count BIGINT NOT NULL DEFAULT 0,
     uploader_id BIGINT NOT NULL

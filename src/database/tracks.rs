@@ -1,4 +1,4 @@
-use crate::database::{MusicDb, categories::{CategoriesDb, CategoryInfo}};
+use crate::database::{MusicDb, categories::{CategoriesDb, CategoryData}};
 
 pub trait TracksDb {
     async fn get_full_track_info(&self, track_id: i64) -> Result<FullTrackInfo, sqlx::Error>;
@@ -175,7 +175,7 @@ pub struct FullTrackInfo {
     pub play_count: i64,
     pub like_count: i64,
     pub uploader_id: i64,
-    pub categories: Vec<CategoryInfo>,
+    pub categories: Vec<CategoryData>,
 }
 
 pub struct UploadTrackInfo {

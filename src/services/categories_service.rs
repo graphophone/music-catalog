@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use tonic::{Request, Response, Status, async_trait};
 use categories::categories_server::Categories;
-use crate::{database::{MusicDb, categories::CategoriesDb}, services::categories_service::categories::{CategoriesPage, CategoryInfo, CreateCategoryRequest, GetCategoriesRequest}};
+use crate::{database::{MusicDb, categories::CategoriesDb}, services::categories_service::categories::{CategoriesPage, CategoryData, CreateCategoryRequest, GetCategoriesRequest}};
 pub use categories::categories_server::CategoriesServer;
 
 pub mod categories {
@@ -21,7 +21,7 @@ impl CategoriesService {
 
 #[async_trait]
 impl Categories for CategoriesService {
-    async fn create_category(&self, req: Request<CreateCategoryRequest>) -> Result<Response<CategoryInfo>, Status> {
+    async fn create_category(&self, req: Request<CreateCategoryRequest>) -> Result<Response<CategoryData>, Status> {
         let req = req.into_inner();
         let res = self.music_db
             .create_category(req.name)
@@ -30,7 +30,7 @@ impl Categories for CategoriesService {
             Ok(info) => info,
             Err(e) => return Err(Status::from_error(Box::new(e))),
         };
-        Ok(Response::new(CategoryInfo {
+        Ok(Response::new(CategoryData {
             id: info.id,
             name: info.name,
         }))
@@ -53,7 +53,7 @@ impl Categories for CategoriesService {
             Err(e) => return Err(Status::from_error(Box::new(e))),
         };
         let categories = categories.into_iter()
-            .map(|c| CategoryInfo { id: c.id, name: c.name })
+            .map(|c| CategoryData { id: c.id, name: c.name })
             .collect();
 
         Ok(Response::new(CategoriesPage { categories, total_count }))

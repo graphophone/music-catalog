@@ -2,8 +2,5 @@
 host = "postgres"
 port = 5432
 user = "user"
-password = "my-postgres-pass"
-database = "music-catalog-db"
-
-[streaming]
-play_token_key = "some long base64 key"
+password = "pg-tracks-db"
+database = "tracks-db"

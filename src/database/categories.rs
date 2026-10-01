@@ -3,17 +3,17 @@ use sqlx::PgConnection;
 use crate::database::MusicDb;
 
 pub trait CategoriesDb {
-    async fn get_categories_for_track(&self, track_id: i64) -> Result<Vec<CategoryInfo>, sqlx::Error>;
-    async fn create_category(&self, category_name: String) -> Result<CategoryInfo, sqlx::Error>;
-    async fn get_categories(&self, page_number: i32, page_size: i32) -> Result<Vec<CategoryInfo>, sqlx::Error>;
+    async fn get_categories_for_track(&self, track_id: i64) -> Result<Vec<CategoryData>, sqlx::Error>;
+    async fn create_category(&self, category_name: String) -> Result<CategoryData, sqlx::Error>;
+    async fn get_categories(&self, page_number: i32, page_size: i32) -> Result<Vec<CategoryData>, sqlx::Error>;
     async fn get_categories_count(&self) -> Result<i64, sqlx::Error>;
     async fn link_track_categories_with_transaction(tx: &mut PgConnection, track_id: i64, categories_ids: &[i64]) -> Result<(), sqlx::Error>;
     async fn unlink_track_categories_with_transaction(tx: &mut PgConnection, track_id: i64, categories_ids: &[i64]) -> Result<(), sqlx::Error>;
 }
 
 impl CategoriesDb for MusicDb {
-    async fn get_categories_for_track(&self, track_id: i64) -> Result<Vec<CategoryInfo>, sqlx::Error> {
-        let categories = sqlx::query_as!(CategoryInfo, r"
+    async fn get_categories_for_track(&self, track_id: i64) -> Result<Vec<CategoryData>, sqlx::Error> {
+        let categories = sqlx::query_as!(CategoryData, r"
             SELECT c.*
             FROM categories c
             JOIN tracks_categories tc
@@ -25,8 +25,8 @@ impl CategoriesDb for MusicDb {
         Ok(categories)
     }
 
-    async fn create_category(&self, category_name: String) -> Result<CategoryInfo, sqlx::Error> {
-        let category = sqlx::query_as!(CategoryInfo, r"
+    async fn create_category(&self, category_name: String) -> Result<CategoryData, sqlx::Error> {
+        let category = sqlx::query_as!(CategoryData, r"
             INSERT INTO categories (name)
             VALUES ($1)
             RETURNING *;
@@ -36,9 +36,9 @@ impl CategoriesDb for MusicDb {
         Ok(category)
     }
 
-    async fn get_categories(&self, page_number: i32, page_size: i32) -> Result<Vec<CategoryInfo>, sqlx::Error> {
+    async fn get_categories(&self, page_number: i32, page_size: i32) -> Result<Vec<CategoryData>, sqlx::Error> {
         let offset = (page_number - 1) * page_size;
-        let categories = sqlx::query_as!(CategoryInfo, r"
+        let categories = sqlx::query_as!(CategoryData, r"
             SELECT *
             FROM categories
             ORDER BY id
@@ -88,7 +88,7 @@ impl CategoriesDb for MusicDb {
 }
 
 #[derive(sqlx::FromRow, Debug, PartialEq, Clone)]
-pub struct CategoryInfo {
+pub struct CategoryData {
     pub id: i64,
     pub name: String,
 }
@@ -182,7 +182,7 @@ use tokio::task::JoinSet;
         for page_number in 1..=((categories.len() as f64 / page_size as f64).ceil() as i32) {
             let page = db.get_categories(page_number, page_size).await?;
             let offset = (page_number - 1) * page_size;
-            let cats: Vec<CategoryInfo> = categories.iter()
+            let cats: Vec<CategoryData> = categories.iter()
                 .skip(offset as usize)
                 .take(page_size as usize)
                 .map(|c| c.clone())
@@ -212,7 +212,7 @@ use tokio::task::JoinSet;
         for page_number in 1..=((categories.len() as f64 / page_size as f64).ceil() as i32) {
             let page = db.get_categories(page_number, page_size).await?;
             let offset = (page_number - 1) * page_size;
-            let cats: Vec<CategoryInfo> = categories.iter()
+            let cats: Vec<CategoryData> = categories.iter()
                 .skip(offset as usize)
                 .take(page_size as usize)
                 .map(|c| c.clone())
