@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS tracks (
     id BIGSERIAL PRIMARY KEY,
-    name TEXT NOT NULL,
+    title TEXT NOT NULL,
     description TEXT,
     thumbnail_url TEXT,
     audio_uri TEXT,
@@ -14,6 +14,18 @@ CREATE TABLE IF NOT EXISTS categories (
     id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL UNIQUE
 );
+
+INSERT INTO categories (name) VALUES
+    ('Rock'),
+    ('Alternative Rock'),
+    ('Lo-Fi'),
+    ('Spiritual'),
+    ('Religious'),
+    ('Hip-Hop'),
+    ('Rap'),
+    ('Country'),
+    ('Jazz'),
+    ('Disco');
 
 CREATE TABLE IF NOT EXISTS tracks_categories (
     track_id BIGINT REFERENCES tracks (id) ON DELETE CASCADE,

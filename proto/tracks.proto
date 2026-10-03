@@ -3,67 +3,67 @@ syntax = "proto3";
 package tracks;
 
 service Tracks {
-    rpc GetFullTrackInfo(GetTrackInfoRequest) returns (FullTrackInfo);
-    rpc UploadTrackInfo(UploadTrackInfoRequest) returns (UploadTrackInfoResponse);
-    rpc UpdateTrackInfo(UpdateTrackInfoRequest) returns (Empty);
-    rpc UpdateTrackThumbnail(UpdateTrackThumbnailRequest) returns (Empty);
-    rpc RemoveTrackInfo(RemoveTrackInfoRequest) returns (Empty);
-    rpc LinkTrackAudio(LinkTrackAudioRequest) returns (Empty);
-    rpc GeneratePlayToken(GeneratePlayTokenRequest) returns (PlayToken);
+    rpc GetFullTrack(GetTrackReq) returns (FullTrack);
+    rpc UploadTrack(UploadTrackReq) returns (TrackId);
+    rpc UpdateTrack(UpdateTrackReq) returns (Empty);
+    rpc UpdateTrackThumbnail(UpdateTrackThumbnailReq) returns (Empty);
+    rpc RemoveTrack(RemoveTrackReq) returns (Empty);
+    rpc LinkTrackAudio(LinkTrackAudioReq) returns (Empty);
+    rpc GeneratePlayToken(GeneratePlayTokenReq) returns (PlayToken);
 }
 
 message Empty {}
 
-message GetTrackInfoRequest {
+message GetTrackReq {
     int64 track_id = 1;
 }
 
-message UploadTrackInfoRequest {
-    string name = 1;
+message UploadTrackReq {
+    string title = 1;
     optional string description = 2;
     int64 uploader_id = 3;
     repeated int64 categories_ids = 4;
 }
 
-message UpdateTrackInfoRequest {
+message UpdateTrackReq {
     int64 track_id = 1;
-    string name = 2;
+    string title = 2;
     optional string description = 3;
     repeated int64 categories_ids = 4;
 }
 
-message UpdateTrackThumbnailRequest {
+message UpdateTrackThumbnailReq {
     int64 track_id = 1;
     optional bytes thumbnail = 2;
 }
 
-message RemoveTrackInfoRequest {
+message RemoveTrackReq {
     int64 track_id = 1;
 }
 
-message LinkTrackAudioRequest {
+message LinkTrackAudioReq {
     int64 track_id = 1;
     string audio_uri = 2;
     int64 duration_seconds = 3;
 }
 
-message GeneratePlayTokenRequest {
+message GeneratePlayTokenReq {
     int64 track_id = 1;
 }
 
-message FullTrackInfo {
+message FullTrack {
     int64 id = 1;
-    string name = 2;
+    string title = 2;
     optional string description = 3;
     optional string thumbnail_url = 4;
     optional int64 duration_seconds = 5;
     int64 play_count = 6;
     int64 like_count = 7;
     int64 uploader_id = 8;
-    repeated CategoryInfo categories = 9;
+    repeated Category categories = 9;
 }
 
-message UploadTrackInfoResponse {
+message TrackId {
     int64 id = 1;
 }
 
@@ -71,7 +71,7 @@ message PlayToken {
     string play_token = 1;
 }
 
-message CategoryInfo {
+message Category {
     int64 id = 1;
     string name = 2;
 }

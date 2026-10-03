@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use tonic::{Request, Response, Status};
-use tracks::tracks_server::{Tracks};
-use tracks::*;
 use crate::database::tracks::TracksDb;
 use crate::database::{self, MusicDb};
 use crate::token;
+use tonic::{Request, Response, Status};
+use tracks::tracks_server::Tracks;
+use tracks::*;
 
 pub use tracks::tracks_server::TracksServer;
 
@@ -20,36 +20,45 @@ pub struct TracksService {
 
 impl TracksService {
     pub fn build(music_db: Arc<MusicDb>, play_token_key: String) -> TracksService {
-        TracksService { music_db, play_token_key }
+        TracksService {
+            music_db,
+            play_token_key,
+        }
     }
 }
 
 #[tonic::async_trait]
 impl Tracks for TracksService {
-    async fn get_full_track_info(&self, req: Request<GetTrackInfoRequest>) -> Result<Response<FullTrackInfo>, Status> {
+    async fn get_full_track(
+        &self,
+        req: Request<GetTrackReq>,
+    ) -> Result<Response<FullTrack>, Status> {
         let req = req.into_inner();
 
-        let query_res = self.music_db
-            .get_full_track_info(req.track_id)
-            .await;
+        let query_res = self.music_db.get_full_track(req.track_id).await;
 
-        let track_info = match query_res {
+        let track = match query_res {
             Ok(v) => v,
             Err(sqlx::Error::RowNotFound) => return Err(Status::not_found("track not found")),
             Err(e) => return Err(Status::from_error(Box::new(e))),
         };
 
-        let res = FullTrackInfo {
-            id: track_info.id,
-            name: track_info.name,
-            description: track_info.description,
-            thumbnail_url: track_info.thumbnail_url,
-            duration_seconds: track_info.duration_seconds,
-            play_count: track_info.play_count,
-            like_count: track_info.like_count,
-            uploader_id: track_info.uploader_id,
-            categories: track_info.categories.into_iter()
-                .map(|c| CategoryInfo { id: c.id, name: c.name })
+        let res = FullTrack {
+            id: track.id,
+            title: track.title,
+            description: track.description,
+            thumbnail_url: track.thumbnail_url,
+            duration_seconds: track.duration_seconds,
+            play_count: track.play_count,
+            like_count: track.like_count,
+            uploader_id: track.uploader_id,
+            categories: track
+                .categories
+                .into_iter()
+                .map(|c| Category {
+                    id: c.id,
+                    name: c.name,
+                })
                 .collect(),
         };
 
@@ -57,36 +66,38 @@ impl Tracks for TracksService {
         Ok(Response::new(res))
     }
 
-    async fn upload_track_info(&self, req: Request<UploadTrackInfoRequest>) -> Result<Response<UploadTrackInfoResponse>, Status> {
+    async fn upload_track(
+        &self,
+        req: Request<UploadTrackReq>,
+    ) -> Result<Response<TrackId>, Status> {
         let req = req.into_inner();
 
-        let track_info = database::tracks::UploadTrackInfo {
-            name: req.name,
+        let track_ = database::tracks::UploadTrack {
+            title: req.title,
             description: req.description,
             uploader_id: req.uploader_id,
             categories_ids: req.categories_ids,
         };
-        let query_res = self.music_db
-            .save_track_info(&track_info)
-            .await;
+        let query_res = self.music_db.save_track(&track_).await;
 
         match query_res {
-            Ok(id) => Ok(Response::new(UploadTrackInfoResponse { id })),
+            Ok(id) => Ok(Response::new(TrackId { id })),
             Err(e) => Err(Status::from_error(Box::new(e))),
         }
     }
 
-    async fn update_track_info(&self, req: Request<UpdateTrackInfoRequest>) -> Result<Response<Empty>, Status> {
+    async fn update_track(
+        &self,
+        req: Request<UpdateTrackReq>,
+    ) -> Result<Response<Empty>, Status> {
         let req = req.into_inner();
 
-        let track_info = database::tracks::UpdateTrackInfo {
-            name: req.name,
+        let track_ = database::tracks::UpdateTrack {
+            title: req.title,
             description: req.description,
             categories_ids: req.categories_ids,
         };
-        let query_res = self.music_db
-            .update_track_info(req.track_id, &track_info)
-            .await;
+        let query_res = self.music_db.update_track(req.track_id, &track_).await;
 
         match query_res {
             Ok(_) => Ok(Response::new(Empty {})),
@@ -95,10 +106,14 @@ impl Tracks for TracksService {
         }
     }
 
-    async fn update_track_thumbnail(&self, req: Request<UpdateTrackThumbnailRequest>) -> Result<Response<Empty>, Status> {
+    async fn update_track_thumbnail(
+        &self,
+        req: Request<UpdateTrackThumbnailReq>,
+    ) -> Result<Response<Empty>, Status> {
         let req = req.into_inner();
 
-        let query_res = self.music_db
+        let query_res = self
+            .music_db
             .update_track_thumbnail(req.track_id, "placeholder url for now")
             .await;
 
@@ -109,12 +124,13 @@ impl Tracks for TracksService {
         }
     }
 
-    async fn remove_track_info(&self, req: Request<RemoveTrackInfoRequest>) -> Result<Response<Empty>, Status> {
+    async fn remove_track(
+        &self,
+        req: Request<RemoveTrackReq>,
+    ) -> Result<Response<Empty>, Status> {
         let req = req.into_inner();
 
-        let query_res = self.music_db
-            .remove_track_info(req.track_id)
-            .await;
+        let query_res = self.music_db.remove_track(req.track_id).await;
 
         match query_res {
             Ok(_) => Ok(Response::new(Empty {})),
@@ -123,16 +139,17 @@ impl Tracks for TracksService {
         }
     }
 
-    async fn link_track_audio(&self, req: Request<LinkTrackAudioRequest>) -> Result<Response<Empty>, Status> {
+    async fn link_track_audio(
+        &self,
+        req: Request<LinkTrackAudioReq>,
+    ) -> Result<Response<Empty>, Status> {
         let req = req.into_inner();
 
-        let link_info = database::tracks::LinkAudioInfo {
+        let link_ = database::tracks::LinkAudio {
             audio_uri: req.audio_uri,
             duration_seconds: req.duration_seconds,
         };
-        let query_res = self.music_db
-            .link_track_audio(req.track_id, &link_info)
-            .await;
+        let query_res = self.music_db.link_track_audio(req.track_id, &link_).await;
 
         match query_res {
             Ok(_) => Ok(Response::new(Empty {})),
@@ -141,13 +158,14 @@ impl Tracks for TracksService {
         }
     }
 
-    async fn generate_play_token(&self, req: Request<GeneratePlayTokenRequest>) -> Result<Response<PlayToken>, Status> {
+    async fn generate_play_token(
+        &self,
+        req: Request<GeneratePlayTokenReq>,
+    ) -> Result<Response<PlayToken>, Status> {
         let req = req.into_inner();
 
-        let query_res = self.music_db
-            .register_play(req.track_id)
-            .await;
-        
+        let query_res = self.music_db.register_play(req.track_id).await;
+
         let audio_uri = match query_res {
             Ok(v) => v,
             Err(sqlx::Error::RowNotFound) => return Err(Status::not_found("track not found")),

@@ -27,13 +27,13 @@ message GetUserLikedRequest {
 }
 
 message LikedPage {
-    repeated LikedTrackInfo liked_tracks = 1;
+    repeated LikedTrack liked_tracks = 1;
     int64 total_count = 2;
 }
 
-message LikedTrackInfo {
+message LikedTrack {
     int64 id = 1;
-    string name = 2;
+    string title = 2;
     optional string thumbnail_url = 3;
     optional int64 duration_seconds = 4;
     int64 play_count = 5;

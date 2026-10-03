@@ -4,3 +4,6 @@ port = 5432
 user = "user"
 password = "pg-tracks-db"
 database = "tracks-db"
+
+[streaming]
+play_token_key = "some long base64 key"

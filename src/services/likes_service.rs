@@ -1,7 +1,13 @@
 use std::sync::Arc;
 
+use crate::{
+    database::{MusicDb, likes::LikesDb},
+    services::likes_service::likes::{
+        Empty, GetUserLikedRequest, LikeTrackRequest, LikedPage, LikedTrack, UnlikeTrackRequest,
+        likes_server::Likes,
+    },
+};
 use tonic::{Request, Response, Status, async_trait};
-use crate::{database::{MusicDb, likes::LikesDb}, services::likes_service::likes::{Empty, GetUserLikedRequest, LikeTrackRequest, LikedPage, LikedTrackInfo, UnlikeTrackRequest, likes_server::Likes}};
 
 pub mod likes {
     tonic::include_proto!("likes");
@@ -28,7 +34,10 @@ impl Likes for LikesService {
         }
     }
 
-    async fn unlike_track(&self, req: Request<UnlikeTrackRequest>) -> Result<Response<Empty>, Status> {
+    async fn unlike_track(
+        &self,
+        req: Request<UnlikeTrackRequest>,
+    ) -> Result<Response<Empty>, Status> {
         let req = req.into_inner();
         let res = self.music_db.unlike_track(req.user_id, req.track_id).await;
         match res {
@@ -37,13 +46,14 @@ impl Likes for LikesService {
         }
     }
 
-    async fn get_user_liked(&self, req: Request<GetUserLikedRequest>) -> Result<Response<LikedPage>, Status> {
+    async fn get_user_liked(
+        &self,
+        req: Request<GetUserLikedRequest>,
+    ) -> Result<Response<LikedPage>, Status> {
         let req = req.into_inner();
-        let liked_tracks = self.music_db.get_liked_tracks_for_user(
-            req.user_id,
-            req.page_number,
-            req.page_size
-        );
+        let liked_tracks =
+            self.music_db
+                .get_liked_tracks_for_user(req.user_id, req.page_number, req.page_size);
         let total_count = self.music_db.get_liked_tracks_count_for_user(req.user_id);
 
         let res = tokio::try_join!(liked_tracks, total_count);
@@ -52,10 +62,11 @@ impl Likes for LikesService {
             Err(e) => return Err(Status::from_error(Box::new(e))),
         };
 
-        let liked_tracks = liked_tracks.into_iter()
-            .map(|t| LikedTrackInfo {
+        let liked_tracks = liked_tracks
+            .into_iter()
+            .map(|t| LikedTrack {
                 id: t.id,
-                name: t.name,
+                title: t.title,
                 thumbnail_url: t.thumbnail_url,
                 duration_seconds: t.duration_seconds,
                 play_count: t.play_count,
