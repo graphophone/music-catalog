@@ -34,7 +34,7 @@ message LikedPage {
 message LikedTrack {
     int64 id = 1;
     string title = 2;
-    optional string thumbnail_url = 3;
+    optional string thumbnail_id = 3;
     optional int64 duration_seconds = 4;
     int64 play_count = 5;
 }

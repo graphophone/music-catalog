@@ -45,7 +45,7 @@ impl LikesDb for MusicDb {
         let liked_tracks: Vec<LikedTrack> = sqlx::query_as!(
             LikedTrack,
             r"
-                SELECT T.id, T.title, T.thumbnail_url, T.duration_seconds, T.play_count
+                SELECT T.id, T.title, T.thumbnail_id, T.duration_seconds, T.play_count
                 FROM track_likes TL
                 JOIN tracks T
                 ON TL.track_id = T.id
@@ -80,7 +80,7 @@ impl LikesDb for MusicDb {
 pub struct LikedTrack {
     pub id: i64,
     pub title: String,
-    pub thumbnail_url: Option<String>,
+    pub thumbnail_id: Option<String>,
     pub duration_seconds: Option<i64>,
     pub play_count: i64,
 }

@@ -7,3 +7,10 @@ database = "tracks-db"
 
 [streaming]
 play_token_key = "some long base64 key"
+
+[rustfs]
+access_key = "rustfsadmin"
+secret_key = "rustfsadmin"
+endpoint_url="http://rustfs:9000"
+region="eu-west-1"
+assets_bucket = "assets"

@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS tracks (
     id BIGSERIAL PRIMARY KEY,
     title TEXT NOT NULL,
     description TEXT,
-    thumbnail_url TEXT,
+    thumbnail_id TEXT,
     audio_uri TEXT,
     upload_status TEXT NOT NULL DEFAULT 'not_uploaded',
     duration_seconds BIGINT,

@@ -55,7 +55,7 @@ message FullTrack {
     int64 id = 1;
     string title = 2;
     optional string description = 3;
-    optional string thumbnail_url = 4;
+    optional string thumbnail_id = 4;
     optional int64 duration_seconds = 5;
     int64 play_count = 6;
     int64 like_count = 7;

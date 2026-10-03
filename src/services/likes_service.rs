@@ -67,7 +67,7 @@ impl Likes for LikesService {
             .map(|t| LikedTrack {
                 id: t.id,
                 title: t.title,
-                thumbnail_url: t.thumbnail_url,
+                thumbnail_id: t.thumbnail_id,
                 duration_seconds: t.duration_seconds,
                 play_count: t.play_count,
             })

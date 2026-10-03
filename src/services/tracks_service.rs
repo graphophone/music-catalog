@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::asset_storage::AssetStorage;
 use crate::database::tracks::TracksDb;
 use crate::database::{self, MusicDb};
 use crate::token;
@@ -15,13 +16,19 @@ pub mod tracks {
 
 pub struct TracksService {
     music_db: Arc<MusicDb>,
+    asset_storage: Arc<AssetStorage>,
     play_token_key: String,
 }
 
 impl TracksService {
-    pub fn build(music_db: Arc<MusicDb>, play_token_key: String) -> TracksService {
+    pub fn build(
+        music_db: Arc<MusicDb>,
+        asset_storage: Arc<AssetStorage>,
+        play_token_key: String,
+    ) -> TracksService {
         TracksService {
             music_db,
+            asset_storage,
             play_token_key,
         }
     }
@@ -47,7 +54,7 @@ impl Tracks for TracksService {
             id: track.id,
             title: track.title,
             description: track.description,
-            thumbnail_url: track.thumbnail_url,
+            thumbnail_id: track.thumbnail_id,
             duration_seconds: track.duration_seconds,
             play_count: track.play_count,
             like_count: track.like_count,
@@ -130,13 +137,33 @@ impl Tracks for TracksService {
     ) -> Result<Response<Empty>, Status> {
         let req = req.into_inner();
 
-        let query_res = self.music_db.remove_track(req.track_id).await;
+        let res = self.music_db.remove_track(req.track_id).await;
 
-        match query_res {
-            Ok(_) => Ok(Response::new(Empty {})),
-            Err(sqlx::Error::RowNotFound) => Err(Status::not_found("track not found")),
-            Err(e) => Err(Status::from_error(Box::new(e))),
-        }
+        let assets = match res {
+            Ok(v) => v,
+            Err(sqlx::Error::RowNotFound) => return Err(Status::not_found("track not found")),
+            Err(e) => return Err(Status::from_error(Box::new(e))),
+        };
+
+        match assets.thumbnail_id {
+            Some(thumbnail_id) => {
+                let asset_storage = Arc::clone(&self.asset_storage);
+                tokio::spawn(async move {
+                    let thumbnail_id = thumbnail_id;
+                    let _ = asset_storage.remove_asset(&thumbnail_id).await;
+                });
+            },
+            None => (),
+        };
+
+        match assets.audio_uri {
+            Some(audio_uri) => {
+                // send remove request to music storage
+            },
+            None => (),
+        };
+
+        Ok(Response::new(Empty {}))
     }
 
     async fn link_track_audio(

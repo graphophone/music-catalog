@@ -14,9 +14,9 @@ pub trait TracksDb {
     async fn update_track_thumbnail(
         &self,
         track_id: i64,
-        thumbnail_url: &str,
+        thumbnail_id: &str,
     ) -> Result<(), sqlx::Error>;
-    async fn remove_track(&self, track_id: i64) -> Result<(), sqlx::Error>;
+    async fn remove_track(&self, track_id: i64) -> Result<RemoveTrackAssets, sqlx::Error>;
     async fn link_track_audio(
         &self,
         track_id: i64,
@@ -35,7 +35,7 @@ impl TracksDb for MusicDb {
                 id,
                 title,
                 description,
-                thumbnail_url,
+                thumbnail_id,
                 duration_seconds,
                 play_count,
                 COUNT(user_id) like_count,
@@ -47,7 +47,7 @@ impl TracksDb for MusicDb {
             GROUP BY id,
                 title,
                 description,
-                thumbnail_url,
+                thumbnail_id,
                 duration_seconds,
                 play_count,
                 uploader_id;",
@@ -63,7 +63,7 @@ impl TracksDb for MusicDb {
             id: track.id,
             title: track.title,
             description: track.description,
-            thumbnail_url: track.thumbnail_url,
+            thumbnail_id: track.thumbnail_id,
             duration_seconds: track.duration_seconds,
             play_count: track.play_count,
             like_count: track.like_count.unwrap_or_default(),
@@ -138,13 +138,13 @@ impl TracksDb for MusicDb {
     async fn update_track_thumbnail(
         &self,
         track_id: i64,
-        thumbnail_url: &str,
+        thumbnail_id: &str,
     ) -> Result<(), sqlx::Error> {
         let res = sqlx::query!(
             r"
-            UPDATE tracks SET thumbnail_url = $1
+            UPDATE tracks SET thumbnail_id = $1
             WHERE id = $2;",
-            thumbnail_url,
+            thumbnail_id,
             track_id,
         )
         .execute(&self.pool)
@@ -155,14 +155,25 @@ impl TracksDb for MusicDb {
         Ok(())
     }
 
-    async fn remove_track(&self, track_id: i64) -> Result<(), sqlx::Error> {
-        let res = sqlx::query!("DELETE FROM tracks WHERE id = $1;", track_id)
-            .execute(&self.pool)
+    async fn remove_track(&self, track_id: i64) -> Result<RemoveTrackAssets, sqlx::Error> {
+        let res = sqlx::query!(
+            r"
+            DELETE FROM tracks
+            WHERE id = $1
+            RETURNING
+            thumbnail_id, audio_uri;
+            ", track_id
+        )
+            .fetch_optional(&self.pool)
             .await?;
-        if res.rows_affected() == 0 {
+        if let Some(rec) = res {
+            return Ok(RemoveTrackAssets {
+                thumbnail_id: rec.thumbnail_id,
+                audio_uri: rec.audio_uri,
+            })
+        } else {
             return Err(sqlx::Error::RowNotFound);
         }
-        Ok(())
     }
 
     async fn link_track_audio(
@@ -209,7 +220,7 @@ pub struct FullTrack {
     pub id: i64,
     pub title: String,
     pub description: Option<String>,
-    pub thumbnail_url: Option<String>,
+    pub thumbnail_id: Option<String>,
     pub duration_seconds: Option<i64>,
     pub play_count: i64,
     pub like_count: i64,
@@ -217,6 +228,10 @@ pub struct FullTrack {
     pub categories: Vec<CategoryData>,
 }
 
+pub struct RemoveTrackAssets {
+    pub thumbnail_id: Option<String>,
+    pub audio_uri: Option<String>,
+}
 pub struct UploadTrack {
     pub title: String,
     pub description: Option<String>,
@@ -275,7 +290,7 @@ mod tests {
             FullTrack {
                 id: id1,
                 title: track_data1.title,
-                thumbnail_url: None,
+                thumbnail_id: None,
                 duration_seconds: None,
                 play_count: 0,
                 like_count: 0,
@@ -305,11 +320,11 @@ mod tests {
             description: Some("new description".to_string()),
             categories_ids: vec![c2.id, c4.id],
         };
-        let thumbnail_url = "test url";
+        let thumbnail_id = "test url";
 
         let id1 = db.save_track(&track_data1).await?;
         db.update_track(id1, &update_track1).await?;
-        db.update_track_thumbnail(id1, thumbnail_url).await?;
+        db.update_track_thumbnail(id1, thumbnail_id).await?;
         let full_data = db.get_full_track(id1).await?;
 
         assert_eq!(
@@ -317,7 +332,7 @@ mod tests {
             FullTrack {
                 id: id1,
                 title: update_track1.title,
-                thumbnail_url: Some(thumbnail_url.to_string()),
+                thumbnail_id: Some(thumbnail_id.to_string()),
                 duration_seconds: None,
                 play_count: 0,
                 like_count: 0,
@@ -372,7 +387,7 @@ mod tests {
             FullTrack {
                 id: id1,
                 title: track_data1.title,
-                thumbnail_url: None,
+                thumbnail_id: None,
                 duration_seconds: Some(audio_.duration_seconds),
                 play_count: 0,
                 like_count: 0,

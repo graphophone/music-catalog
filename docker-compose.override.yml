@@ -12,5 +12,14 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      - postgres-tracks-db
     volumes:
       - ./servers.json:/pgadmin4/servers.json
+
+  rustfs:
+    ports:
+      - "19021:9001"
+      - "19020:9000"
+    environment:
+      - RUSTFS_CONSOLE_ENABLE=true
