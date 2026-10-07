@@ -30,21 +30,30 @@ message UpdateTrackReq {
     string title = 2;
     optional string description = 3;
     repeated int64 categories_ids = 4;
+    int64 uploader_id = 5;
+}
+
+message Image {
+    bytes image = 1;
+    string mime_type = 2;
 }
 
 message UpdateTrackThumbnailReq {
     int64 track_id = 1;
-    optional bytes thumbnail = 2;
+    optional Image thumbnail = 2;
+    int64 uploader_id = 3;
 }
 
 message RemoveTrackReq {
     int64 track_id = 1;
+    int64 uploader_id = 2;
 }
 
 message LinkTrackAudioReq {
     int64 track_id = 1;
     string audio_uri = 2;
     int64 duration_seconds = 3;
+    int64 uploader_id = 4;
 }
 
 message GeneratePlayTokenReq {

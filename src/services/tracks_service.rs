@@ -69,7 +69,6 @@ impl Tracks for TracksService {
                 .collect(),
         };
 
-        dbg!(res.clone());
         Ok(Response::new(res))
     }
 
@@ -79,13 +78,13 @@ impl Tracks for TracksService {
     ) -> Result<Response<TrackId>, Status> {
         let req = req.into_inner();
 
-        let track_ = database::tracks::UploadTrack {
+        let track_data = database::tracks::UploadTrack {
             title: req.title,
             description: req.description,
             uploader_id: req.uploader_id,
             categories_ids: req.categories_ids,
         };
-        let query_res = self.music_db.save_track(&track_).await;
+        let query_res = self.music_db.save_track(&track_data).await;
 
         match query_res {
             Ok(id) => Ok(Response::new(TrackId { id })),
@@ -99,12 +98,13 @@ impl Tracks for TracksService {
     ) -> Result<Response<Empty>, Status> {
         let req = req.into_inner();
 
-        let track_ = database::tracks::UpdateTrack {
+        let track_data = database::tracks::UpdateTrack {
             title: req.title,
             description: req.description,
             categories_ids: req.categories_ids,
+            uploader_id: req.uploader_id,
         };
-        let query_res = self.music_db.update_track(req.track_id, &track_).await;
+        let query_res = self.music_db.update_track(req.track_id, &track_data).await;
 
         match query_res {
             Ok(_) => Ok(Response::new(Empty {})),
@@ -119,16 +119,40 @@ impl Tracks for TracksService {
     ) -> Result<Response<Empty>, Status> {
         let req = req.into_inner();
 
-        let query_res = self
+        let mut thumbnail_id = None;
+        if let Some(thumbnail) = req.thumbnail {
+            let id = self.asset_storage
+                .upload_asset(&thumbnail.image, &thumbnail.mime_type)
+                .await
+                .map_err(|_| Status::internal("failed to upload thumbnail"))?;
+            thumbnail_id = Some(id);
+        };
+
+        let old_thumbnail_id = self
             .music_db
-            .update_track_thumbnail(req.track_id, "placeholder url for now")
+            .update_track_thumbnail(req.track_id, &database::tracks::UpdateTrackThumbnail {
+                thumbnail_id,
+                uploader_id: req.uploader_id,
+            })
             .await;
 
-        match query_res {
-            Ok(_) => Ok(Response::new(Empty {})),
-            Err(sqlx::Error::RowNotFound) => Err(Status::not_found("track not found")),
-            Err(e) => Err(Status::from_error(Box::new(e))),
+       let old_thumbnail_id = match old_thumbnail_id {
+            Ok(v) => v,
+            Err(sqlx::Error::RowNotFound) => return Err(Status::not_found("track not found")),
+            Err(e) => return Err(Status::from_error(Box::new(e))),
+        };
+
+        if let Some(old_id) = old_thumbnail_id {
+            let asset_storage = Arc::clone(&self.asset_storage);
+            tokio::spawn(async move {
+                let old_id = old_id;
+                let _ = asset_storage
+                    .remove_asset(&old_id)
+                    .await;
+            });
         }
+
+        Ok(Response::new(Empty {}))
     }
 
     async fn remove_track(
@@ -137,7 +161,10 @@ impl Tracks for TracksService {
     ) -> Result<Response<Empty>, Status> {
         let req = req.into_inner();
 
-        let res = self.music_db.remove_track(req.track_id).await;
+        let res = self.music_db.remove_track(
+            req.track_id,
+            req.uploader_id,
+        ).await;
 
         let assets = match res {
             Ok(v) => v,
@@ -172,11 +199,12 @@ impl Tracks for TracksService {
     ) -> Result<Response<Empty>, Status> {
         let req = req.into_inner();
 
-        let link_ = database::tracks::LinkAudio {
+        let link = database::tracks::LinkAudio {
             audio_uri: req.audio_uri,
             duration_seconds: req.duration_seconds,
+            uploader_id: req.uploader_id,
         };
-        let query_res = self.music_db.link_track_audio(req.track_id, &link_).await;
+        let query_res = self.music_db.link_track_audio(req.track_id, &link).await;
 
         match query_res {
             Ok(_) => Ok(Response::new(Empty {})),

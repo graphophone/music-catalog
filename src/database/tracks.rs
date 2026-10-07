@@ -5,22 +5,22 @@ use crate::database::{
 
 pub trait TracksDb {
     async fn get_full_track(&self, track_id: i64) -> Result<FullTrack, sqlx::Error>;
-    async fn save_track(&self, track_: &UploadTrack) -> Result<i64, sqlx::Error>;
+    async fn save_track(&self, track: &UploadTrack) -> Result<i64, sqlx::Error>;
     async fn update_track(
         &self,
         track_id: i64,
-        track_: &UpdateTrack,
+        data: &UpdateTrack,
     ) -> Result<(), sqlx::Error>;
     async fn update_track_thumbnail(
         &self,
         track_id: i64,
-        thumbnail_id: &str,
-    ) -> Result<(), sqlx::Error>;
-    async fn remove_track(&self, track_id: i64) -> Result<RemoveTrackAssets, sqlx::Error>;
+        data: &UpdateTrackThumbnail,
+    ) -> Result<Option<String>, sqlx::Error>;
+    async fn remove_track(&self, track_id: i64, uploader_id: i64) -> Result<TrackAssets, sqlx::Error>;
     async fn link_track_audio(
         &self,
         track_id: i64,
-        link_: &LinkAudio,
+        link: &LinkAudio,
     ) -> Result<(), sqlx::Error>;
     async fn register_play(&self, track_id: i64) -> Result<String, sqlx::Error>;
 }
@@ -76,8 +76,7 @@ impl TracksDb for MusicDb {
     async fn save_track(&self, track: &UploadTrack) -> Result<i64, sqlx::Error> {
         let mut tx = self.pool.begin().await?;
 
-        let id: i64 = sqlx::query_scalar!(
-            r"
+        let id: i64 = sqlx::query_scalar!(r"
             INSERT INTO tracks (
                 title, description, uploader_id
             ) VALUES ($1, $2, $3)
@@ -99,17 +98,17 @@ impl TracksDb for MusicDb {
     async fn update_track(
         &self,
         track_id: i64,
-        track: &UpdateTrack,
+        data: &UpdateTrack,
     ) -> Result<(), sqlx::Error> {
         let mut tx = self.pool.begin().await?;
 
-        let res = sqlx::query!(
-            r"
+        let res = sqlx::query!(r"
             UPDATE tracks SET title = $1, description = $2
-            WHERE id = $3;",
-            &track.title,
-            track.description,
+            WHERE id = $3 AND uploader_id = $4;",
+            &data.title,
+            data.description,
             track_id,
+            data.uploader_id,
         )
         .execute(&mut *tx)
         .await?;
@@ -120,14 +119,14 @@ impl TracksDb for MusicDb {
         Self::link_track_categories_with_transaction(
             &mut *tx,
             track_id,
-            &track.categories_ids,
+            &data.categories_ids,
         )
         .await?;
 
         Self::unlink_track_categories_with_transaction(
             &mut *tx,
             track_id,
-            &track.categories_ids,
+            &data.categories_ids,
         )
         .await?;
 
@@ -138,36 +137,34 @@ impl TracksDb for MusicDb {
     async fn update_track_thumbnail(
         &self,
         track_id: i64,
-        thumbnail_id: &str,
-    ) -> Result<(), sqlx::Error> {
-        let res = sqlx::query!(
-            r"
+        data: &UpdateTrackThumbnail,
+    ) -> Result<Option<String>, sqlx::Error> {
+        let old_thumbnail_id = sqlx::query_scalar!(r"
             UPDATE tracks SET thumbnail_id = $1
-            WHERE id = $2;",
-            thumbnail_id,
+            WHERE id = $2 AND uploader_id = $3
+            RETURNING OLD.thumbnail_id;",
+            data.thumbnail_id,
             track_id,
+            data.uploader_id,
         )
-        .execute(&self.pool)
-        .await?;
-        if res.rows_affected() == 0 {
-            return Err(sqlx::Error::RowNotFound);
-        }
-        Ok(())
+            .fetch_one(&self.pool)
+            .await?;
+        Ok(old_thumbnail_id)
     }
 
-    async fn remove_track(&self, track_id: i64) -> Result<RemoveTrackAssets, sqlx::Error> {
-        let res = sqlx::query!(
-            r"
+    async fn remove_track(&self, track_id: i64, uploader_id: i64) -> Result<TrackAssets, sqlx::Error> {
+        let res = sqlx::query!(r"
             DELETE FROM tracks
-            WHERE id = $1
+            WHERE id = $1 AND uploader_id = $2
             RETURNING
-            thumbnail_id, audio_uri;
-            ", track_id
+            thumbnail_id, audio_uri;",
+            track_id,
+            uploader_id,
         )
             .fetch_optional(&self.pool)
             .await?;
         if let Some(rec) = res {
-            return Ok(RemoveTrackAssets {
+            return Ok(TrackAssets {
                 thumbnail_id: rec.thumbnail_id,
                 audio_uri: rec.audio_uri,
             })
@@ -179,15 +176,15 @@ impl TracksDb for MusicDb {
     async fn link_track_audio(
         &self,
         track_id: i64,
-        link_: &LinkAudio,
+        link: &LinkAudio,
     ) -> Result<(), sqlx::Error> {
-        let res = sqlx::query!(
-            r"
+        let res = sqlx::query!(r"
             UPDATE tracks SET audio_uri = $1, duration_seconds = $2
-            WHERE id = $3;",
-            &link_.audio_uri,
-            link_.duration_seconds,
+            WHERE id = $3 AND uploader_id = $4;",
+            &link.audio_uri,
+            link.duration_seconds,
             track_id,
+            link.uploader_id,
         )
         .execute(&self.pool)
         .await?;
@@ -199,8 +196,7 @@ impl TracksDb for MusicDb {
     }
 
     async fn register_play(&self, track_id: i64) -> Result<String, sqlx::Error> {
-        let audio_uri = sqlx::query_scalar!(
-            r"
+        let audio_uri = sqlx::query_scalar!(r"
             UPDATE tracks SET play_count = play_count + 1
             WHERE id = $1
             RETURNING audio_uri;",
@@ -228,10 +224,11 @@ pub struct FullTrack {
     pub categories: Vec<CategoryData>,
 }
 
-pub struct RemoveTrackAssets {
+pub struct TrackAssets {
     pub thumbnail_id: Option<String>,
     pub audio_uri: Option<String>,
 }
+
 pub struct UploadTrack {
     pub title: String,
     pub description: Option<String>,
@@ -243,11 +240,18 @@ pub struct UpdateTrack {
     pub title: String,
     pub description: Option<String>,
     pub categories_ids: Vec<i64>,
+    pub uploader_id: i64,
+}
+
+pub struct UpdateTrackThumbnail {
+    pub thumbnail_id: Option<String>,
+    pub uploader_id: i64,
 }
 
 pub struct LinkAudio {
     pub audio_uri: String,
     pub duration_seconds: i64,
+    pub uploader_id: i64,
 }
 
 #[cfg(test)]
@@ -319,12 +323,16 @@ mod tests {
             title: "new title 1".to_string(),
             description: Some("new description".to_string()),
             categories_ids: vec![c2.id, c4.id],
+            uploader_id: 1,
         };
-        let thumbnail_id = "test url";
+        let thumbnail_id = "test url".to_string();
 
         let id1 = db.save_track(&track_data1).await?;
         db.update_track(id1, &update_track1).await?;
-        db.update_track_thumbnail(id1, thumbnail_id).await?;
+        db.update_track_thumbnail(id1, &UpdateTrackThumbnail {
+            thumbnail_id: Some(thumbnail_id.clone()),
+            uploader_id: 1,
+        }).await?;
         let full_data = db.get_full_track(id1).await?;
 
         assert_eq!(
@@ -332,7 +340,7 @@ mod tests {
             FullTrack {
                 id: id1,
                 title: update_track1.title,
-                thumbnail_id: Some(thumbnail_id.to_string()),
+                thumbnail_id: Some(thumbnail_id),
                 duration_seconds: None,
                 play_count: 0,
                 like_count: 0,
@@ -355,7 +363,7 @@ mod tests {
         };
 
         let id1 = db.save_track(&track_data1).await?;
-        db.remove_track(id1).await?;
+        db.remove_track(id1, 1).await?;
         let full_data = db.get_full_track(id1).await;
 
         match full_data {
@@ -376,6 +384,7 @@ mod tests {
         let audio_ = LinkAudio {
             audio_uri: "some uri".to_string(),
             duration_seconds: 123,
+            uploader_id: 1,
         };
 
         let id1 = db.save_track(&track_data1).await?;
@@ -411,6 +420,7 @@ mod tests {
         let audio_ = LinkAudio {
             audio_uri: "some uri".to_string(),
             duration_seconds: 123,
+            uploader_id: 1,
         };
 
         let id1 = db.save_track(&track_data1).await?;

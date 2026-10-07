@@ -2,12 +2,12 @@
     "Servers": {
         "1": {
             "Group": "Servers",
-            "Name": "music-catalog",
-            "Host": "postgres",
+            "Name": "tracks",
+            "Host": "postgres-tracks",
             "Port": 5432,
-            "MaintenanceDB": "music-catalog-db",
+            "MaintenanceDB": "tracks-db",
             "Username": "user",
-            "Password": "my-postgres-pass",
+            "Password": "pg-tracks-db",
             "SSLMode": "prefer",
             "Favorite": true
         }

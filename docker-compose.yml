@@ -31,7 +31,7 @@ services:
     
   rustfs:
     image: rustfs/rustfs:1.0.0-rc.3
-    container_name: rustfs-assets
+    container_name: rustfs-tracks-assets
     depends_on:
       - volume-permissions-helper
     security_opt:
@@ -77,7 +77,6 @@ services:
       start_period: 40s
 
   bucket-helper:
-    container_name: bucket-helper
     image: debian:12.15-slim
     depends_on:
       rustfs:
@@ -129,6 +128,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      bucket-helper:
+        condition: service_completed_successfully
     networks:
       - postgres-tracks-db
       - rustfs-network

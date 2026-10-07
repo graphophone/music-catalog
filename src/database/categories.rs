@@ -34,13 +34,11 @@ impl CategoriesDb for MusicDb {
     ) -> Result<Vec<CategoryData>, sqlx::Error> {
         let categories = sqlx::query_as!(
             CategoryData,
-            r"
-            SELECT c.*
+            r"SELECT c.*
             FROM categories c
             JOIN tracks_categories tc
             ON tc.category_id = c.id
-            WHERE tc.track_id = $1;
-        ",
+            WHERE tc.track_id = $1;",
             track_id
         )
         .fetch_all(&self.pool)
@@ -51,11 +49,9 @@ impl CategoriesDb for MusicDb {
     async fn create_category(&self, category_name: String) -> Result<CategoryData, sqlx::Error> {
         let category = sqlx::query_as!(
             CategoryData,
-            r"
-            INSERT INTO categories (name)
+            r"INSERT INTO categories (name)
             VALUES ($1)
-            RETURNING *;
-        ",
+            RETURNING *;",
             category_name
         )
         .fetch_one(&self.pool)
@@ -72,13 +68,11 @@ impl CategoriesDb for MusicDb {
         let offset = (page_number - 1) * page_size;
         let categories = sqlx::query_as!(
             CategoryData,
-            r"
-            SELECT *
+            r"SELECT *
             FROM categories
             WHERE name ILIKE CONCAT('%', $1::text, '%')
             ORDER BY id
-            LIMIT $2 OFFSET $3;
-        ",
+            LIMIT $2 OFFSET $3;",
             search_token,
             page_size as i64,
             offset as i64
@@ -93,15 +87,13 @@ impl CategoriesDb for MusicDb {
         track_id: i64,
         categories_ids: &[i64],
     ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r"
+        sqlx::query!(r"
             INSERT INTO tracks_categories (track_id, category_id)
             SELECT $1, *
             FROM (
                 SELECT * FROM UNNEST($2::bigint[])
             )
-            ON CONFLICT DO NOTHING;
-        ",
+            ON CONFLICT DO NOTHING;",
             track_id,
             &categories_ids
         )
@@ -115,13 +107,11 @@ impl CategoriesDb for MusicDb {
         track_id: i64,
         categories_ids: &[i64],
     ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r"
+        sqlx::query!(r"
             DELETE FROM tracks_categories 
             WHERE
                 track_id = $1 AND
-                category_id NOT IN (SELECT * FROM UNNEST($2::bigint[]));
-        ",
+                category_id NOT IN (SELECT * FROM UNNEST($2::bigint[]));",
             track_id,
             &categories_ids
         )
@@ -131,11 +121,9 @@ impl CategoriesDb for MusicDb {
     }
 
     async fn get_categories_count(&self) -> Result<i64, sqlx::Error> {
-        let count = sqlx::query_scalar!(
-            r"
+        let count = sqlx::query_scalar!(r"
             SELECT COUNT(*)
-            FROM categories;
-        "
+            FROM categories;"
         )
         .fetch_one(&self.pool)
         .await?
