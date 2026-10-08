@@ -3,20 +3,16 @@ syntax = "proto3";
 package tracks;
 
 service Tracks {
-    rpc GetFullTrack(GetTrackReq) returns (FullTrack);
+    rpc GetFullTrack(TrackId) returns (FullTrack);
     rpc UploadTrack(UploadTrackReq) returns (TrackId);
     rpc UpdateTrack(UpdateTrackReq) returns (Empty);
     rpc UpdateTrackThumbnail(UpdateTrackThumbnailReq) returns (Empty);
     rpc RemoveTrack(RemoveTrackReq) returns (Empty);
     rpc LinkTrackAudio(LinkTrackAudioReq) returns (Empty);
-    rpc GeneratePlayToken(GeneratePlayTokenReq) returns (PlayToken);
+    rpc GeneratePlayToken(TrackId) returns (PlayToken);
 }
 
 message Empty {}
-
-message GetTrackReq {
-    int64 track_id = 1;
-}
 
 message UploadTrackReq {
     string title = 1;
@@ -54,10 +50,6 @@ message LinkTrackAudioReq {
     string audio_uri = 2;
     int64 duration_seconds = 3;
     int64 uploader_id = 4;
-}
-
-message GeneratePlayTokenReq {
-    int64 track_id = 1;
 }
 
 message FullTrack {

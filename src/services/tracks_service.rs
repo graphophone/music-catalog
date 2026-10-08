@@ -38,11 +38,13 @@ impl TracksService {
 impl Tracks for TracksService {
     async fn get_full_track(
         &self,
-        req: Request<GetTrackReq>,
+        req: Request<TrackId>,
     ) -> Result<Response<FullTrack>, Status> {
         let req = req.into_inner();
 
-        let query_res = self.music_db.get_full_track(req.track_id).await;
+        let query_res = self
+            .music_db.get_full_track(req.id)
+            .await;
 
         let track = match query_res {
             Ok(v) => v,
@@ -215,11 +217,13 @@ impl Tracks for TracksService {
 
     async fn generate_play_token(
         &self,
-        req: Request<GeneratePlayTokenReq>,
+        req: Request<TrackId>,
     ) -> Result<Response<PlayToken>, Status> {
         let req = req.into_inner();
 
-        let query_res = self.music_db.register_play(req.track_id).await;
+        let query_res = self.music_db
+            .register_play(req.id)
+            .await;
 
         let audio_uri = match query_res {
             Ok(v) => v,
