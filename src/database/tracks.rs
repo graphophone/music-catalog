@@ -154,10 +154,15 @@ impl TracksDb for MusicDb {
 
     async fn remove_track(&self, track_id: i64, uploader_id: i64) -> Result<TrackAssets, sqlx::Error> {
         let res = sqlx::query!(r"
-            DELETE FROM tracks
-            WHERE id = $1 AND uploader_id = $2
-            RETURNING
-            thumbnail_id, audio_uri;",
+            WITH ctx AS (
+                DELETE FROM tracks
+                WHERE id = $1 AND uploader_id = $2
+                RETURNING id, thumbnail_id
+            )
+            SELECT thumbnail_id, audio_uri
+            FROM track_audio
+            RIGHT JOIN ctx
+            ON track_id = id",
             track_id,
             uploader_id,
         )
@@ -179,12 +184,18 @@ impl TracksDb for MusicDb {
         link: &LinkAudio,
     ) -> Result<(), sqlx::Error> {
         let res = sqlx::query!(r"
-            UPDATE tracks SET audio_uri = $1, duration_seconds = $2
-            WHERE id = $3 AND uploader_id = $4;",
-            &link.audio_uri,
-            link.duration_seconds,
+            WITH ctx AS (
+                SELECT id
+                FROM tracks
+                WHERE id = $1 AND uploader_id = $2
+            )
+            INSERT INTO track_audio (track_id, audio_uri, duration_seconds)
+            SELECT id, $3, $4
+            FROM ctx",
             track_id,
             link.uploader_id,
+            &link.audio_uri,
+            link.duration_seconds,
         )
         .execute(&self.pool)
         .await?;
@@ -198,12 +209,13 @@ impl TracksDb for MusicDb {
     async fn register_play(&self, track_id: i64) -> Result<String, sqlx::Error> {
         let audio_uri = sqlx::query_scalar!(r"
             UPDATE tracks SET play_count = play_count + 1
-            WHERE id = $1
+            FROM track_audio
+            WHERE id = $1 AND track_id = id
             RETURNING audio_uri;",
             track_id,
         )
-        .fetch_one(&self.pool)
-        .await?;
+            .fetch_optional(&self.pool)
+            .await?;
         match audio_uri {
             Some(uri) => Ok(uri),
             None => Err(sqlx::Error::RowNotFound),

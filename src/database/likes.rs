@@ -45,10 +45,12 @@ impl LikesDb for MusicDb {
         let liked_tracks: Vec<LikedTrack> = sqlx::query_as!(
             LikedTrack,
             r"
-                SELECT T.id, T.title, T.thumbnail_id, T.duration_seconds, T.play_count
+                SELECT T.id, T.title, T.thumbnail_id, TA.duration_seconds, T.play_count
                 FROM track_likes TL
                 JOIN tracks T
                 ON TL.track_id = T.id
+                JOIN track_audio TA
+                ON T.id = TA.track_id
                 WHERE TL.user_id = $1
                 ORDER BY created_at DESC
                 LIMIT $2 OFFSET $3;
