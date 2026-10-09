@@ -69,6 +69,7 @@ impl Tracks for TracksService {
                     name: c.name,
                 })
                 .collect(),
+            upload_status: track.upload_status,
         };
 
         Ok(Response::new(res))

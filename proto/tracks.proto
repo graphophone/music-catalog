@@ -62,6 +62,7 @@ message FullTrack {
     int64 like_count = 7;
     int64 uploader_id = 8;
     repeated Category categories = 9;
+    string upload_status = 10;
 }
 
 message TrackId {
