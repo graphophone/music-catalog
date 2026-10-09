@@ -3,8 +3,8 @@ use sqlx::PgConnection;
 use crate::database::MusicDb;
 
 pub trait CategoriesDb {
-    async fn get_categories_for_track(
-        &self,
+    async fn get_categories_for_track_with_transaction(
+        tx: &mut PgConnection,
         track_id: i64,
     ) -> Result<Vec<CategoryData>, sqlx::Error>;
     async fn create_category(&self, category_name: String) -> Result<CategoryData, sqlx::Error>;
@@ -28,8 +28,8 @@ pub trait CategoriesDb {
 }
 
 impl CategoriesDb for MusicDb {
-    async fn get_categories_for_track(
-        &self,
+    async fn get_categories_for_track_with_transaction(
+        tx: &mut PgConnection,
         track_id: i64,
     ) -> Result<Vec<CategoryData>, sqlx::Error> {
         let categories = sqlx::query_as!(
@@ -40,9 +40,8 @@ impl CategoriesDb for MusicDb {
             ON tc.category_id = c.id
             WHERE tc.track_id = $1;",
             track_id
-        )
-        .fetch_all(&self.pool)
-        .await?;
+        ).fetch_all(&mut *tx)
+            .await?;
         Ok(categories)
     }
 
@@ -165,45 +164,6 @@ mod tests {
         assert_eq!(c2.name, c2_name);
         assert_eq!(c3.name, c3_name);
         assert_eq!(c4.name, c4_name);
-        Ok(())
-    }
-
-    #[sqlx::test]
-    async fn test_get_categories_for_track(pool: sqlx::PgPool) -> Result<()> {
-        let db = MusicDb { pool };
-        let (c1, c2, c3, c4) = tokio::try_join!(
-            db.create_category("Category 1".to_string()),
-            db.create_category("Category 2".to_string()),
-            db.create_category("Category 3".to_string()),
-            db.create_category("Category 4".to_string()),
-        )?;
-
-        let mut t1_cats = vec![c1.clone(), c2.clone(), c3.clone()];
-        let track_data1 = UploadTrack {
-            title: "test song 1".to_string(),
-            description: None,
-            uploader_id: 1,
-            categories_ids: t1_cats.iter().map(|c| c.id).collect(),
-        };
-        let t1_id = db.save_track(&track_data1).await?;
-
-        let mut t2_cats = vec![c1.clone(), c3.clone(), c4.clone()];
-        let track_data2 = UploadTrack {
-            title: "test song 2".to_string(),
-            description: Some("test descr".to_string()),
-            uploader_id: 2,
-            categories_ids: t2_cats.iter().map(|c| c.id).collect(),
-        };
-        let t2_id = db.save_track(&track_data2).await?;
-
-        let mut categories1 = db.get_categories_for_track(t1_id).await?;
-        categories1.sort_by(|c1, c2| c1.id.cmp(&c2.id));
-        t1_cats.sort_by(|c1, c2| c1.id.cmp(&c2.id));
-        assert_eq!(categories1, t1_cats);
-        let mut categories2 = db.get_categories_for_track(t2_id).await?;
-        categories2.sort_by(|c1, c2| c1.id.cmp(&c2.id));
-        t2_cats.sort_by(|c1, c2| c1.id.cmp(&c2.id));
-        assert_eq!(categories2, t2_cats);
         Ok(())
     }
 

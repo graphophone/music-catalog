@@ -29,8 +29,7 @@ impl TracksDb for MusicDb {
     async fn get_full_track(&self, track_id: i64) -> Result<FullTrack, sqlx::Error> {
         let mut tx = self.pool.begin().await?;
 
-        let track = sqlx::query!(
-            r"
+        let track = sqlx::query!(r"
             SELECT
                 id,
                 title,
@@ -39,6 +38,7 @@ impl TracksDb for MusicDb {
                 duration_seconds,
                 play_count,
                 COUNT(user_id) like_count,
+                upload_status,
                 uploader_id
             FROM tracks T
             LEFT JOIN track_likes TL
@@ -50,12 +50,17 @@ impl TracksDb for MusicDb {
                 thumbnail_id,
                 duration_seconds,
                 play_count,
-                uploader_id;",
+                uploader_id,
+                upload_status;",
             track_id,
         )
-        .fetch_one(&mut *tx);
-        let track_categories = self.get_categories_for_track(track_id);
-        let (track, track_categories) = tokio::try_join!(track, track_categories)?;
+            .fetch_one(&mut *tx)
+            .await?;
+
+        let track_categories = MusicDb::get_categories_for_track_with_transaction(
+            &mut *tx,
+            track_id,
+        ).await?;
 
         tx.commit().await?;
 
@@ -69,6 +74,7 @@ impl TracksDb for MusicDb {
             like_count: track.like_count.unwrap_or_default(),
             uploader_id: track.uploader_id,
             categories: track_categories,
+            upload_status: track.upload_status,
         };
         Ok(res)
     }
@@ -84,9 +90,8 @@ impl TracksDb for MusicDb {
             &track.title,
             track.description,
             track.uploader_id,
-        )
-        .fetch_one(&mut *tx)
-        .await?;
+        ).fetch_one(&mut *tx)
+            .await?;
 
         Self::link_track_categories_with_transaction(&mut *tx, id, &track.categories_ids)
             .await?;
@@ -109,9 +114,8 @@ impl TracksDb for MusicDb {
             data.description,
             track_id,
             data.uploader_id,
-        )
-        .execute(&mut *tx)
-        .await?;
+        ).execute(&mut *tx)
+            .await?;
         if res.rows_affected() == 0 {
             return Err(sqlx::Error::RowNotFound);
         }
@@ -120,15 +124,13 @@ impl TracksDb for MusicDb {
             &mut *tx,
             track_id,
             &data.categories_ids,
-        )
-        .await?;
+        ).await?;
 
         Self::unlink_track_categories_with_transaction(
             &mut *tx,
             track_id,
             &data.categories_ids,
-        )
-        .await?;
+        ).await?;
 
         tx.commit().await?;
         Ok(())
@@ -183,7 +185,9 @@ impl TracksDb for MusicDb {
         track_id: i64,
         link: &LinkAudio,
     ) -> Result<(), sqlx::Error> {
-        let res = sqlx::query!(r"
+        let mut tx = self.pool.begin().await?;
+        
+        let res1 = sqlx::query!(r"
             WITH ctx AS (
                 SELECT id
                 FROM tracks
@@ -197,12 +201,22 @@ impl TracksDb for MusicDb {
             &link.audio_uri,
             link.duration_seconds,
         )
-        .execute(&self.pool)
-        .await?;
+            .execute(&mut *tx)
+            .await?;
 
-        if res.rows_affected() == 0 {
+        if res1.rows_affected() == 0 {
             return Err(sqlx::Error::RowNotFound);
         }
+
+        sqlx::query!(r"
+            UPDATE tracks SET upload_status = 'uploaded'
+            WHERE id = $1;",
+            track_id,
+        )
+            .execute(&mut *tx)
+            .await?;
+
+        tx.commit().await?;
         Ok(())
     }
 
@@ -234,6 +248,7 @@ pub struct FullTrack {
     pub like_count: i64,
     pub uploader_id: i64,
     pub categories: Vec<CategoryData>,
+    pub upload_status: String,
 }
 
 pub struct TrackAssets {
@@ -313,6 +328,7 @@ mod tests {
                 uploader_id: track_data1.uploader_id,
                 description: track_data1.description,
                 categories: vec![],
+                upload_status: "audio not uploaded".to_string(),
             }
         );
         Ok(())
@@ -359,6 +375,7 @@ mod tests {
                 uploader_id: track_data1.uploader_id,
                 description: update_track1.description,
                 categories: vec![c2, c4],
+                upload_status: "audio not uploaded".to_string(),
             }
         );
         Ok(())
@@ -415,6 +432,7 @@ mod tests {
                 uploader_id: track_data1.uploader_id,
                 description: track_data1.description,
                 categories: vec![],
+                upload_status: "audio not uploaded".to_string(),
             }
         );
         Ok(())
