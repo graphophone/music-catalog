@@ -6,7 +6,8 @@ CREATE TABLE IF NOT EXISTS tracks (
     duration_seconds BIGINT,
     play_count BIGINT NOT NULL DEFAULT 0,
     uploader_id BIGINT NOT NULL,
-    upload_status VARCHAR(20) NOT NULL DEFAULT 'audio not uploaded'
+    upload_status VARCHAR(20) NOT NULL DEFAULT 'audio not uploaded',
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS categories (
@@ -41,6 +42,5 @@ CREATE TABLE IF NOT EXISTS track_likes (
 CREATE TABLE IF NOT EXISTS track_audio (
     track_id BIGINT UNIQUE REFERENCES tracks(id) ON DELETE CASCADE,
     audio_uri TEXT NOT NULL,
-    duration_seconds BIGINT NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+    duration_seconds BIGINT NOT NULL
 );

@@ -42,8 +42,8 @@ impl Tracks for TracksService {
     ) -> Result<Response<FullTrack>, Status> {
         let req = req.into_inner();
 
-        let query_res = self
-            .music_db.get_full_track(req.id)
+        let query_res = self.music_db
+            .get_full_track(req.id)
             .await;
 
         let track = match query_res {
@@ -70,6 +70,7 @@ impl Tracks for TracksService {
                 })
                 .collect(),
             upload_status: track.upload_status,
+            created_at: track.created_at.unix_timestamp(),
         };
 
         Ok(Response::new(res))

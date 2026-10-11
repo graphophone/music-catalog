@@ -1,3 +1,5 @@
+use sqlx::types::time;
+
 use crate::database::{
     MusicDb,
     categories::{CategoriesDb, CategoryData},
@@ -39,7 +41,8 @@ impl TracksDb for MusicDb {
                 play_count,
                 COUNT(user_id) like_count,
                 upload_status,
-                uploader_id
+                uploader_id,
+                created_at
             FROM tracks T
             LEFT JOIN track_likes TL
             ON T.id = TL.track_id
@@ -75,6 +78,7 @@ impl TracksDb for MusicDb {
             uploader_id: track.uploader_id,
             categories: track_categories,
             upload_status: track.upload_status,
+            created_at: track.created_at,
         };
         Ok(res)
     }
@@ -249,6 +253,7 @@ pub struct FullTrack {
     pub uploader_id: i64,
     pub categories: Vec<CategoryData>,
     pub upload_status: String,
+    pub created_at: time::OffsetDateTime,
 }
 
 pub struct TrackAssets {
@@ -329,6 +334,7 @@ mod tests {
                 description: track_data1.description,
                 categories: vec![],
                 upload_status: "audio not uploaded".to_string(),
+                created_at: full_data.created_at,
             }
         );
         Ok(())
@@ -376,6 +382,7 @@ mod tests {
                 description: update_track1.description,
                 categories: vec![c2, c4],
                 upload_status: "audio not uploaded".to_string(),
+                created_at: full_data.created_at,
             }
         );
         Ok(())
@@ -433,6 +440,7 @@ mod tests {
                 description: track_data1.description,
                 categories: vec![],
                 upload_status: "audio not uploaded".to_string(),
+                created_at: full_data.created_at,
             }
         );
         Ok(())

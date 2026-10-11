@@ -63,6 +63,7 @@ message FullTrack {
     int64 uploader_id = 8;
     repeated Category categories = 9;
     string upload_status = 10;
+    int64 created_at = 11;
 }
 
 message TrackId {
