@@ -13,10 +13,10 @@ pub trait TracksDb {
         track_id: i64,
         data: &UpdateTrack,
     ) -> Result<(), sqlx::Error>;
-    async fn update_track_thumbnail(
+    async fn update_thumbnail(
         &self,
         track_id: i64,
-        data: &UpdateTrackThumbnail,
+        data: &UpdateThumbnail,
     ) -> Result<Option<String>, sqlx::Error>;
     async fn remove_track(&self, track_id: i64, uploader_id: i64) -> Result<TrackAssets, sqlx::Error>;
     async fn link_track_audio(
@@ -140,10 +140,10 @@ impl TracksDb for MusicDb {
         Ok(())
     }
 
-    async fn update_track_thumbnail(
+    async fn update_thumbnail(
         &self,
         track_id: i64,
-        data: &UpdateTrackThumbnail,
+        data: &UpdateThumbnail,
     ) -> Result<Option<String>, sqlx::Error> {
         let old_thumbnail_id = sqlx::query_scalar!(r"
             UPDATE tracks SET thumbnail_id = $1
@@ -275,7 +275,7 @@ pub struct UpdateTrack {
     pub uploader_id: i64,
 }
 
-pub struct UpdateTrackThumbnail {
+pub struct UpdateThumbnail {
     pub thumbnail_id: Option<String>,
     pub uploader_id: i64,
 }
@@ -363,7 +363,7 @@ mod tests {
 
         let id1 = db.save_track(&track_data1).await?;
         db.update_track(id1, &update_track1).await?;
-        db.update_track_thumbnail(id1, &UpdateTrackThumbnail {
+        db.update_thumbnail(id1, &UpdateThumbnail {
             thumbnail_id: Some(thumbnail_id.clone()),
             uploader_id: 1,
         }).await?;

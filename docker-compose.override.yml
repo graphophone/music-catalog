@@ -23,3 +23,4 @@ services:
       - "19020:9000"
     environment:
       - RUSTFS_CONSOLE_ENABLE=true
+      - RUSTFS_CORS_ALLOWED_ORIGINS=*

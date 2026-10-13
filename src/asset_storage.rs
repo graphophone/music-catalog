@@ -2,13 +2,14 @@ use std::time::Duration;
 
 use anyhow::Result;
 use aws_config::{BehaviorVersion, Region};
-use aws_sdk_s3::{Client, config::Credentials, presigning::PresigningConfig};
+use aws_sdk_s3::{Client, Config, config::Credentials, presigning::PresigningConfig};
 use uuid::Uuid;
 use crate::config;
 
 pub struct AssetStorage {
     bucket: String,
     client: Client,
+    offline_client: Client,
 }
 
 impl AssetStorage {
@@ -23,7 +24,7 @@ impl AssetStorage {
 
         let shared_config = aws_config::defaults(BehaviorVersion::latest())
             .region(Region::new(conf.region.clone()))
-            .credentials_provider(credentials)
+            .credentials_provider(credentials.clone())
             .endpoint_url(&conf.endpoint_url)
             .load()
             .await;
@@ -35,19 +36,36 @@ impl AssetStorage {
         let rustfs_client = Client::from_conf(s3_config);
         Self::ensure_bucket(&rustfs_client, &conf.assets_bucket).await;
 
+        // FIX LATER
+        let offline_conf = Config::builder()
+            .endpoint_url("http://localhost:19020")
+            .behavior_version_latest()
+            .region(Region::new(conf.region.clone()))
+            .credentials_provider(credentials)
+            .force_path_style(true)
+            .build();
+        let offline_client = Client::from_conf(offline_conf);
+
         Ok(AssetStorage {
             client: rustfs_client,
+            offline_client,
             bucket: conf.assets_bucket.clone(),
         })
     }
 
     pub async fn get_upload_url(&self, mime_type: &str) -> Result<(String, String)> {
+        let split = mime_type.split("/");
+        let file_type = match split.skip(1).next() {
+            Some(v) => v.to_string(),
+            None => return Err(anyhow::Error::msg("failed to parse mime_type")),
+        };
         let id = Uuid::new_v4().to_string();
-        let id = format!("{}.{}", id, mime_type);
-        let put_request = self.client
+        let id = format!("{}.{}", id, file_type);
+        let put_request = self.offline_client
             .put_object()
             .bucket(&self.bucket)
             .key(&id)
+            .content_type(mime_type)
             .presigned(
                 PresigningConfig::builder()
                     .expires_in(Duration::from_mins(5))

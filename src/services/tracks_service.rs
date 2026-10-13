@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::asset_storage::AssetStorage;
-use crate::database::tracks::{TracksDb, UpdateTrackThumbnail};
+use crate::database::tracks::{TracksDb, UpdateThumbnail};
 use crate::database::{self, MusicDb};
 use crate::token;
 use tonic::{Request, Response, Status};
@@ -117,10 +117,10 @@ impl Tracks for TracksService {
         }
     }
 
-    async fn upload_track_thumbnail(
+    async fn upload_thumbnail(
         &self,
-        req: Request<UploadTrackThumbnailReq>,
-    ) -> Result<Response<Empty>, Status> {
+        req: Request<UploadThumbnailReq>,
+    ) -> Result<Response<UploadThumbnailRes>, Status> {
         let req = req.into_inner();
 
         let (upload_url, id) = self.asset_storage
@@ -128,20 +128,47 @@ impl Tracks for TracksService {
             .await
             .map_err(|_| Status::internal("failed to upload thumbnail"))?;
 
-        Ok(Response::new(UploadTrackThumbnailRes {
+        Ok(Response::new(UploadThumbnailRes {
             upload_url,
             thumbnail_id: id,
         }))
     }
 
-    async fn remove_track_thumbnail(
+    async fn notify_upload_thumbnail(
         &self,
-        req: Request<RemoveTrackThumbnailReq>,
+        req: Request<NotifyUploadThumbnailReq>,
     ) -> Result<Response<Empty>, Status> {
         let req = req.into_inner();
 
         let old_thumbnail_id = self.music_db
-            .update_track_thumbnail(req.track_id, &UpdateTrackThumbnail {
+            .update_thumbnail(req.track_id, &UpdateThumbnail {
+                thumbnail_id: Some(req.thumbnail_id),
+                uploader_id: req.uploader_id,
+            })
+            .await
+            .map_err(|e| Status::from_error(Box::new(e)))?;
+
+        if let Some(old_thumbnail_id) = old_thumbnail_id {
+            let asset_storage = Arc::clone(&self.asset_storage);
+            tokio::spawn(async move {
+                let old_id = old_thumbnail_id;
+                let _ = asset_storage
+                    .remove_asset(&old_id)
+                    .await;
+            });
+        }
+
+        Ok(Response::new(Empty {}))
+    }
+
+    async fn remove_thumbnail(
+        &self,
+        req: Request<RemoveThumbnailReq>,
+    ) -> Result<Response<Empty>, Status> {
+        let req = req.into_inner();
+
+        let old_thumbnail_id = self.music_db
+            .update_thumbnail(req.track_id, &UpdateThumbnail {
                 thumbnail_id: None,
                 uploader_id: req.uploader_id,
             })
