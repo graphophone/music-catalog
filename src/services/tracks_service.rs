@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::asset_storage::AssetStorage;
-use crate::database::tracks::TracksDb;
+use crate::database::tracks::{TracksDb, UpdateTrackThumbnail};
 use crate::database::{self, MusicDb};
 use crate::token;
 use tonic::{Request, Response, Status};
@@ -117,39 +117,41 @@ impl Tracks for TracksService {
         }
     }
 
-    async fn update_track_thumbnail(
+    async fn upload_track_thumbnail(
         &self,
-        req: Request<UpdateTrackThumbnailReq>,
+        req: Request<UploadTrackThumbnailReq>,
     ) -> Result<Response<Empty>, Status> {
         let req = req.into_inner();
 
-        let mut thumbnail_id = None;
-        if let Some(thumbnail) = req.thumbnail {
-            let id = self.asset_storage
-                .upload_asset(&thumbnail.image, &thumbnail.mime_type)
-                .await
-                .map_err(|_| Status::internal("failed to upload thumbnail"))?;
-            thumbnail_id = Some(id);
-        };
+        let (upload_url, id) = self.asset_storage
+            .get_upload_url(&req.mime_type)
+            .await
+            .map_err(|_| Status::internal("failed to upload thumbnail"))?;
 
-        let old_thumbnail_id = self
-            .music_db
-            .update_track_thumbnail(req.track_id, &database::tracks::UpdateTrackThumbnail {
-                thumbnail_id,
+        Ok(Response::new(UploadTrackThumbnailRes {
+            upload_url,
+            thumbnail_id: id,
+        }))
+    }
+
+    async fn remove_track_thumbnail(
+        &self,
+        req: Request<RemoveTrackThumbnailReq>,
+    ) -> Result<Response<Empty>, Status> {
+        let req = req.into_inner();
+
+        let old_thumbnail_id = self.music_db
+            .update_track_thumbnail(req.track_id, &UpdateTrackThumbnail {
+                thumbnail_id: None,
                 uploader_id: req.uploader_id,
             })
-            .await;
+            .await
+            .map_err(|e| Status::from_error(Box::new(e)))?;
 
-       let old_thumbnail_id = match old_thumbnail_id {
-            Ok(v) => v,
-            Err(sqlx::Error::RowNotFound) => return Err(Status::not_found("track not found")),
-            Err(e) => return Err(Status::from_error(Box::new(e))),
-        };
-
-        if let Some(old_id) = old_thumbnail_id {
+        if let Some(old_thumbnail_id) = old_thumbnail_id {
             let asset_storage = Arc::clone(&self.asset_storage);
             tokio::spawn(async move {
-                let old_id = old_id;
+                let old_id = old_thumbnail_id;
                 let _ = asset_storage
                     .remove_asset(&old_id)
                     .await;

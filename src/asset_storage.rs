@@ -1,6 +1,8 @@
+use std::time::Duration;
+
 use anyhow::Result;
 use aws_config::{BehaviorVersion, Region};
-use aws_sdk_s3::{Client, config::Credentials, primitives::ByteStream};
+use aws_sdk_s3::{Client, config::Credentials, presigning::PresigningConfig};
 use uuid::Uuid;
 use crate::config;
 
@@ -39,17 +41,20 @@ impl AssetStorage {
         })
     }
 
-    pub async fn upload_asset(&self, image: &[u8], mime_type: &str) -> Result<String> {
+    pub async fn get_upload_url(&self, mime_type: &str) -> Result<(String, String)> {
         let id = Uuid::new_v4().to_string();
         let id = format!("{}.{}", id, mime_type);
-        self.client
+        let put_request = self.client
             .put_object()
             .bucket(&self.bucket)
             .key(&id)
-            .body(ByteStream::from(image.to_vec()))
-            .send()
+            .presigned(
+                PresigningConfig::builder()
+                    .expires_in(Duration::from_mins(5))
+                    .build()?
+            )
             .await?;
-        Ok(id)
+        Ok((put_request.uri().to_string(), id))
     }
 
     pub async fn remove_asset(&self, id: &str) -> Result<()> {

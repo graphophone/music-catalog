@@ -6,7 +6,9 @@ service Tracks {
     rpc GetFullTrack(TrackId) returns (FullTrack);
     rpc UploadTrack(UploadTrackReq) returns (TrackId);
     rpc UpdateTrack(UpdateTrackReq) returns (Empty);
-    rpc UpdateTrackThumbnail(UpdateTrackThumbnailReq) returns (Empty);
+    rpc UploadTrackThumbnail(UploadTrackThumbnailReq) returns (UploadTrackThumbnailRes);
+    rpc NotifyUploadTrackThumbnail(UploadTrackThumbnailReq) returns (Empty);
+    rpc RemoveTrackThumbnail(RemoveTrackThumbnailReq) returns (Empty);
     rpc RemoveTrack(RemoveTrackReq) returns (Empty);
     rpc LinkTrackAudio(LinkTrackAudioReq) returns (Empty);
     rpc GeneratePlayToken(TrackId) returns (PlayToken);
@@ -29,15 +31,24 @@ message UpdateTrackReq {
     int64 uploader_id = 5;
 }
 
-message Image {
-    bytes image = 1;
+message UploadTrackThumbnailReq {
+    int64 track_id = 1;
     string mime_type = 2;
+    int64 uploader_id = 3;
 }
 
-message UpdateTrackThumbnailReq {
+message UploadTrackThumbnailRes {
+    string upload_url = 1;
+    string thumbnail_id = 2;
+}
+
+message NotifyUploadTrackThumbnailReq {
+    string thumbnail_id = 2;
+}
+
+message RemoveTrackThumbnailReq {
     int64 track_id = 1;
-    optional Image thumbnail = 2;
-    int64 uploader_id = 3;
+    int64 uploader_id = 2;
 }
 
 message RemoveTrackReq {
