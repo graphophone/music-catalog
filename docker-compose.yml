@@ -89,6 +89,17 @@ services:
       - |
         apt update && apt install curl unzip -y
         export PATH=$PATH:/root/.local/bin
+
+        curl -fsSL https://awscli.amazonaws.com/v2/install.sh | bash
+        echo "Installed awscli"
+
+        { echo "rustfsadmin"; echo "rustfsadmin"; echo "eu-west-1"; echo "json"; } | aws configure
+        echo "Configured awscli"
+
+        aws s3api create-bucket \
+        --bucket assets \
+        --endpoint-url http://rustfs:9000
+
         cat > /tmp/assets-policy.json <<'EOF'
         {
           "Version": "2012-10-17",
@@ -105,19 +116,38 @@ services:
         EOF
         echo "Set bucket policy json"
 
-        curl -fsSL https://awscli.amazonaws.com/v2/install.sh | bash
-        echo "Installed awscli"
-
-        { echo "rustfsadmin"; echo "rustfsadmin"; echo "eu-west-1"; echo "json"; } | aws configure
-        echo "Configured awscli"
-
-        aws s3api create-bucket \
-        --bucket assets \
-        --endpoint-url http://rustfs:9000
-
         aws s3api put-bucket-policy \
         --bucket assets \
         --policy file:///tmp/assets-policy.json \
+        --endpoint-url http://rustfs:9000
+
+        aws s3api create-bucket \
+        --bucket raw_audio \
+        --endpoint-url http://rustfs:9000
+
+        aws s3api create-bucket \
+        --bucket streaming_audio \
+        --endpoint-url http://rustfs:9000
+
+        cat > /tmp/streaming_audio-policy.json <<'EOF'
+        {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "PublicReadObjects",
+              "Effect": "Allow",
+              "Principal": "*",
+              "Action": ["s3:GetObject"],
+              "Resource": ["arn:aws:s3:::streaming_audio/*"]
+            }
+          ]
+        }
+        EOF
+        echo "Set bucket policy json"
+
+        aws s3api put-bucket-policy \
+        --bucket streaming_audio \
+        --policy file:///tmp/streaming_audio-policy.json \
         --endpoint-url http://rustfs:9000
     restart: "no"
 

@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS tracks (
     duration_seconds BIGINT,
     play_count BIGINT NOT NULL DEFAULT 0,
     uploader_id BIGINT NOT NULL,
-    upload_status VARCHAR(20) NOT NULL DEFAULT 'audio not uploaded',
+    upload_status VARCHAR(30) NOT NULL DEFAULT 'audio_not_uploaded',
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 

@@ -13,7 +13,7 @@ pub struct AssetStorage {
 }
 
 impl AssetStorage {
-    pub async fn build(conf: &config::RustfsConfig) -> Result<Self> {
+    pub async fn build(bucket: String, conf: &config::RustfsConfig) -> Result<Self> {
         let credentials = Credentials::new(
             &conf.access_key,
             &conf.secret_key,
@@ -34,7 +34,7 @@ impl AssetStorage {
             .build();
 
         let rustfs_client = Client::from_conf(s3_config);
-        Self::ensure_bucket(&rustfs_client, &conf.assets_bucket).await;
+        Self::ensure_bucket(&rustfs_client, &conf.images_bucket).await;
 
         // FIX LATER
         let offline_conf = Config::builder()
@@ -49,7 +49,7 @@ impl AssetStorage {
         Ok(AssetStorage {
             client: rustfs_client,
             offline_client,
-            bucket: conf.assets_bucket.clone(),
+            bucket,
         })
     }
 

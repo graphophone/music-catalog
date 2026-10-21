@@ -4,17 +4,18 @@ use tonic::transport::Server;
 use tower_http::trace::TraceLayer;
 
 use crate::{
-    asset_storage::AssetStorage, database::MusicDb, services::{
+    database::MusicDb,
+    services::{
         categories_service::{CategoriesServer, CategoriesService},
         likes_service::{LikesService, likes::likes_server::LikesServer},
         tracks_service::{TracksServer, TracksService},
     },
 };
 
+mod asset_storage;
 pub mod config;
 mod database;
 pub mod services;
-mod asset_storage;
 pub mod token;
 
 pub async fn run(conf: &config::Config) -> Result<(), Box<dyn Error>> {
@@ -24,22 +25,16 @@ pub async fn run(conf: &config::Config) -> Result<(), Box<dyn Error>> {
 
     let music_db = MusicDb::build(&conf).await?;
     let music_db = Arc::new(music_db);
-    let asset_storage = AssetStorage::build(&conf.rustfs).await?;
-    let asset_storage = Arc::new(asset_storage);
 
     let addr: SocketAddr = "0.0.0.0:8080".parse()?;
-    let tracks_service =
-        TracksService::build(
-            Arc::clone(&music_db),
-            asset_storage,
-            conf.streaming.play_token_key.clone(),
-        );
-    let categories_service = CategoriesService::build(
+    let tracks_service = TracksService::build(
+        &conf.rustfs,
         Arc::clone(&music_db),
-    );
-    let likes_service = LikesService::build(
-        Arc::clone(&music_db),
-    );
+        conf.streaming.play_token_key.clone(),
+    )
+    .await?;
+    let categories_service = CategoriesService::build(Arc::clone(&music_db));
+    let likes_service = LikesService::build(Arc::clone(&music_db));
 
     println!("serving music catalog grpc api: {}", &addr);
     Server::builder()

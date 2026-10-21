@@ -37,5 +37,7 @@ pub struct RustfsConfig {
     pub secret_key: String,
     pub endpoint_url: String,
     pub region: String,
-    pub assets_bucket: String,
+    pub images_bucket: String,
+    pub raw_audio_bucket: String,
+    pub streaming_audio_bucket: String,
 }
