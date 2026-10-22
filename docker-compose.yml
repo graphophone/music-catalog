@@ -151,6 +151,24 @@ services:
         --endpoint-url http://rustfs:9000
     restart: "no"
 
+  rabbitmq:
+    image: rabbitmq:management
+    container_name: audio-processing-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: secure_password
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - rabbitmq_log:/var/log/rabbitmq
+
   tracks-catalog-svc:
     build:
       context: .
@@ -160,6 +178,8 @@ services:
         condition: service_healthy
       bucket-helper:
         condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
     networks:
       - postgres-tracks-db
       - rustfs-network
@@ -173,6 +193,8 @@ volumes:
     driver: local
   rustfs_data_0:
   logs:
+  rabbitmq_data:
+  rabbitmq_log:
 
 networks:
   rustfs-network:
