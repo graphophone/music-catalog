@@ -1,11 +1,12 @@
-use serde::Deserialize;
 use config::{Config as _Config, File};
+use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub postgres: PostgresConfig,
     pub streaming: StreamingConfig,
     pub rustfs: RustfsConfig,
+    pub rabbitmq: RabbitmqConfig,
 }
 
 impl Config {
@@ -40,4 +41,10 @@ pub struct RustfsConfig {
     pub images_bucket: String,
     pub raw_audio_bucket: String,
     pub streaming_audio_bucket: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RabbitmqConfig {
+    pub addr: String,
+    pub queue: String,
 }

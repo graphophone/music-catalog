@@ -243,7 +243,7 @@ impl TracksDb for MusicDb {
         track_id: i64,
         data: &UpdateUploadStatus,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
+        let res = sqlx::query!(
             r"
             UPDATE tracks SET upload_status = $3
             WHERE id = $1 AND uploader_id = $2;",
@@ -253,6 +253,10 @@ impl TracksDb for MusicDb {
         )
         .execute(&self.pool)
         .await?;
+
+        if res.rows_affected() == 0 {
+            return Err(sqlx::Error::RowNotFound);
+        }
 
         Ok(())
     }

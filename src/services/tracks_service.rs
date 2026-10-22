@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::asset_storage::AssetStorage;
+use crate::audio_processing_manager::AudioProcessingManager;
 use crate::config::RustfsConfig;
 use crate::database::tracks::{TracksDb, UpdateThumbnail, UpdateUploadStatus};
 use crate::database::{self, MusicDb};
@@ -20,6 +21,7 @@ pub struct TracksService {
     image_storage: Arc<AssetStorage>,
     raw_audio_storage: Arc<AssetStorage>,
     streaming_audio_storage: Arc<AssetStorage>,
+    audio_processing_manager: Arc<AudioProcessingManager>,
     play_token_key: String,
 }
 
@@ -28,6 +30,7 @@ impl TracksService {
         storage_conf: &RustfsConfig,
         music_db: Arc<MusicDb>,
         play_token_key: String,
+        audio_processing_manager: Arc<AudioProcessingManager>,
     ) -> anyhow::Result<TracksService> {
         let (is, ras, sas) = tokio::try_join!(
             AssetStorage::build(storage_conf.images_bucket.clone(), storage_conf,),
@@ -41,6 +44,7 @@ impl TracksService {
             raw_audio_storage: Arc::new(ras),
             streaming_audio_storage: Arc::new(sas),
             play_token_key,
+            audio_processing_manager,
         })
     }
 }
@@ -299,8 +303,6 @@ impl Tracks for TracksService {
     ) -> Result<Response<Empty>, Status> {
         let req = req.into_inner();
 
-        // Request audio fragmentation from audio processing service
-
         self.music_db
             .update_upload_status(
                 req.track_id,
@@ -311,6 +313,11 @@ impl Tracks for TracksService {
             )
             .await
             .map_err(|_| Status::internal("failed to update upload status"))?;
+
+        self.audio_processing_manager
+            .send_audio_processing_request(req.track_id, &req.asset_id)
+            .await
+            .map_err(|_| Status::internal("failed to send audio processing request"))?;
 
         Ok(Response::new(Empty {}))
     }

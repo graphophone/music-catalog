@@ -16,3 +16,7 @@ region = "eu-west-1"
 images_bucket = "images"
 raw_audio_bucket = "raw-audio"
 streaming_audio_bucket = "streaming-audio"
+
+[rabbitmq]
+addr = "amqp://admin:secure_password@rabbitmq:5672"
+queue = "audio_processing_queue"

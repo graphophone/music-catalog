@@ -4,6 +4,7 @@ use tonic::transport::Server;
 use tower_http::trace::TraceLayer;
 
 use crate::{
+    audio_processing_manager::AudioProcessingManager,
     database::MusicDb,
     services::{
         categories_service::{CategoriesServer, CategoriesService},
@@ -13,6 +14,7 @@ use crate::{
 };
 
 mod asset_storage;
+pub mod audio_processing_manager;
 pub mod config;
 mod database;
 pub mod services;
@@ -26,11 +28,14 @@ pub async fn run(conf: &config::Config) -> Result<(), Box<dyn Error>> {
     let music_db = MusicDb::build(&conf).await?;
     let music_db = Arc::new(music_db);
 
+    let audio_processing_manager = Arc::new(AudioProcessingManager::build(&conf.rabbitmq).await?);
+
     let addr: SocketAddr = "0.0.0.0:8080".parse()?;
     let tracks_service = TracksService::build(
         &conf.rustfs,
         Arc::clone(&music_db),
         conf.streaming.play_token_key.clone(),
+        audio_processing_manager,
     )
     .await?;
     let categories_service = CategoriesService::build(Arc::clone(&music_db));
