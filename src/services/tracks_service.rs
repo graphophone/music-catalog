@@ -62,7 +62,9 @@ impl Tracks for TracksService {
             id: track.id,
             title: track.title,
             description: track.description,
-            thumbnail_id: track.thumbnail_id,
+            thumbnail_id: track
+                .thumbnail_id
+                .map(|v| self.image_storage.prepare_asset_id(&v)),
             duration_seconds: track.duration_seconds,
             play_count: track.play_count,
             like_count: track.like_count,

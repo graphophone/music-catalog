@@ -31,7 +31,7 @@ services:
     
   rustfs:
     image: rustfs/rustfs:1.0.0-rc.3
-    container_name: rustfs-tracks-assets
+    container_name: rustfs-tracks-images
     depends_on:
       - volume-permissions-helper
     security_opt:
@@ -87,7 +87,7 @@ services:
       - /bin/sh
       - -c
       - |
-        apt update && apt install curl unzip -y
+        apt update && apt install gnupg curl unzip -y
         export PATH=$PATH:/root/.local/bin
 
         curl -fsSL https://awscli.amazonaws.com/v2/install.sh | bash
@@ -97,10 +97,10 @@ services:
         echo "Configured awscli"
 
         aws s3api create-bucket \
-        --bucket assets \
+        --bucket images \
         --endpoint-url http://rustfs:9000
 
-        cat > /tmp/assets-policy.json <<'EOF'
+        cat > /tmp/images-policy.json <<'EOF'
         {
           "Version": "2012-10-17",
           "Statement": [
@@ -109,7 +109,7 @@ services:
               "Effect": "Allow",
               "Principal": "*",
               "Action": ["s3:GetObject"],
-              "Resource": ["arn:aws:s3:::assets/*"]
+              "Resource": ["arn:aws:s3:::images/*"]
             }
           ]
         }
@@ -117,19 +117,19 @@ services:
         echo "Set bucket policy json"
 
         aws s3api put-bucket-policy \
-        --bucket assets \
-        --policy file:///tmp/assets-policy.json \
+        --bucket images \
+        --policy file:///tmp/images-policy.json \
         --endpoint-url http://rustfs:9000
 
         aws s3api create-bucket \
-        --bucket raw_audio \
+        --bucket raw-audio \
         --endpoint-url http://rustfs:9000
 
         aws s3api create-bucket \
-        --bucket streaming_audio \
+        --bucket streaming-audio \
         --endpoint-url http://rustfs:9000
 
-        cat > /tmp/streaming_audio-policy.json <<'EOF'
+        cat > /tmp/streaming-audio-policy.json <<'EOF'
         {
           "Version": "2012-10-17",
           "Statement": [
@@ -138,7 +138,7 @@ services:
               "Effect": "Allow",
               "Principal": "*",
               "Action": ["s3:GetObject"],
-              "Resource": ["arn:aws:s3:::streaming_audio/*"]
+              "Resource": ["arn:aws:s3:::streaming-audio/*"]
             }
           ]
         }
@@ -146,8 +146,8 @@ services:
         echo "Set bucket policy json"
 
         aws s3api put-bucket-policy \
-        --bucket streaming_audio \
-        --policy file:///tmp/streaming_audio-policy.json \
+        --bucket streaming-audio \
+        --policy file:///tmp/streaming-audio-policy.json \
         --endpoint-url http://rustfs:9000
     restart: "no"
 
