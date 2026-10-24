@@ -1,32 +1,32 @@
 syntax = "proto3";
 
-package tracks;
+package music;
 
-service Tracks {
-    rpc GetFullTrack(TrackId) returns (FullTrack);
-    rpc UploadTrack(UploadTrackReq) returns (TrackId);
-    rpc UpdateTrack(UpdateTrackReq) returns (Empty);
+service Music {
+    rpc GetFullMusic(MusicId) returns (FullMusic);
+    rpc UploadMusic(UploadMusicReq) returns (MusicId);
+    rpc UpdateMusic(UpdateMusicReq) returns (Empty);
     rpc UploadThumbnail(UploadAssetReq) returns (UploadAssetRes);
     rpc NotifyUploadThumbnail(NotifyUploadAssetReq) returns (Empty);
     rpc RemoveThumbnail(RemoveThumbnailReq) returns (Empty);
-    rpc UploadTrackAudio(UploadAssetReq) returns (UploadAssetRes);
-    rpc NotifyUploadTrackAudio(NotifyUploadAssetReq) returns (Empty);
-    rpc RemoveTrack(RemoveTrackReq) returns (Empty);
-    rpc LinkTrackAudio(LinkTrackAudioReq) returns (Empty);
-    rpc GeneratePlayToken(TrackId) returns (PlayToken);
+    rpc UploadMusicAudio(UploadAssetReq) returns (UploadAssetRes);
+    rpc NotifyUploadMusicAudio(NotifyUploadAssetReq) returns (Empty);
+    rpc RemoveMusic(RemoveMusicReq) returns (Empty);
+    rpc LinkMusicAudio(LinkMusicAudioReq) returns (Empty);
+    rpc GeneratePlayToken(MusicId) returns (PlayToken);
 }
 
 message Empty {}
 
-message UploadTrackReq {
+message UploadMusicReq {
     string title = 1;
     optional string description = 2;
     int64 uploader_id = 3;
     repeated int64 categories_ids = 4;
 }
 
-message UpdateTrackReq {
-    int64 track_id = 1;
+message UpdateMusicReq {
+    int64 music_id = 1;
     string title = 2;
     optional string description = 3;
     repeated int64 categories_ids = 4;
@@ -34,13 +34,13 @@ message UpdateTrackReq {
 }
 
 message UploadAssetReq {
-    int64 track_id = 1;
+    int64 music_id = 1;
     string mime_type = 2;
     int64 uploader_id = 3;
 }
 
-message UploadTrackAudioReq {
-    string track_id = 1;
+message UploadMusicAudioReq {
+    string music_id = 1;
     string mime_type = 2;
 
 }
@@ -51,29 +51,29 @@ message UploadAssetRes {
 }
 
 message NotifyUploadAssetReq {
-    int64 track_id = 1;
+    int64 music_id = 1;
     string asset_id = 2;
     int64 uploader_id = 3;
 }
 
 message RemoveThumbnailReq {
-    int64 track_id = 1;
+    int64 music_id = 1;
     int64 uploader_id = 2;
 }
 
-message RemoveTrackReq {
-    int64 track_id = 1;
+message RemoveMusicReq {
+    int64 music_id = 1;
     int64 uploader_id = 2;
 }
 
-message LinkTrackAudioReq {
-    int64 track_id = 1;
+message LinkMusicAudioReq {
+    int64 music_id = 1;
     string audio_uri = 2;
     int64 duration_seconds = 3;
     int64 uploader_id = 4;
 }
 
-message FullTrack {
+message FullMusic {
     int64 id = 1;
     string title = 2;
     optional string description = 3;
@@ -87,7 +87,7 @@ message FullTrack {
     int64 created_at = 11;
 }
 
-message TrackId {
+message MusicId {
     int64 id = 1;
 }
 

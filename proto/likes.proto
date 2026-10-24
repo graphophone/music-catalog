@@ -3,21 +3,21 @@ syntax = "proto3";
 package likes;
 
 service Likes {
-    rpc like_track(LikeTrackRequest) returns (Empty);
-    rpc unlike_track(UnlikeTrackRequest) returns (Empty);
+    rpc like_music(LikeMusicRequest) returns (Empty);
+    rpc unlike_music(UnlikeMusicRequest) returns (Empty);
     rpc get_user_liked(GetUserLikedRequest) returns (LikedPage);
 }
 
 message Empty {}
 
-message LikeTrackRequest {
+message LikeMusicRequest {
     int64 user_id = 1;
-    int64 track_id = 2;
+    int64 music_id = 2;
 }
 
-message UnlikeTrackRequest {
+message UnlikeMusicRequest {
     int64 user_id = 1;
-    int64 track_id = 2;
+    int64 music_id = 2;
 }
 
 message GetUserLikedRequest {
@@ -27,11 +27,11 @@ message GetUserLikedRequest {
 }
 
 message LikedPage {
-    repeated LikedTrack liked_tracks = 1;
+    repeated LikedMusic liked_music = 1;
     int64 total_count = 2;
 }
 
-message LikedTrack {
+message LikedMusic {
     int64 id = 1;
     string title = 2;
     optional string thumbnail_id = 3;

@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS tracks (
+CREATE TABLE IF NOT EXISTS music (
     id BIGSERIAL PRIMARY KEY,
     title TEXT NOT NULL,
     description TEXT,
@@ -27,20 +27,20 @@ INSERT INTO categories (name) VALUES
     ('Jazz'),
     ('Disco');
 
-CREATE TABLE IF NOT EXISTS tracks_categories (
-    track_id BIGINT REFERENCES tracks (id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS music_categories (
+    music_id BIGINT REFERENCES music (id) ON DELETE CASCADE,
     category_id BIGINT REFERENCES categories (id) ON DELETE CASCADE,
-    UNIQUE (track_id, category_id)
+    UNIQUE (music_id, category_id)
 );
 
-CREATE TABLE IF NOT EXISTS track_likes (
+CREATE TABLE IF NOT EXISTS music_likes (
     user_id BIGINT NOT NULL,
-    track_id BIGINT REFERENCES tracks (id) ON DELETE CASCADE,
-    UNIQUE (user_id, track_id)
+    music_id BIGINT REFERENCES music (id) ON DELETE CASCADE,
+    UNIQUE (user_id, music_id)
 );
 
-CREATE TABLE IF NOT EXISTS track_audio (
-    track_id BIGINT UNIQUE REFERENCES tracks(id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS music_audio (
+    music_id BIGINT UNIQUE REFERENCES music(id) ON DELETE CASCADE,
     audio_uri TEXT NOT NULL,
     duration_seconds BIGINT NOT NULL
 );

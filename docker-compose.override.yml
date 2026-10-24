@@ -13,7 +13,7 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - postgres-tracks-db
+      - postgres-music-db
     volumes:
       - ./servers.json:/pgadmin4/servers.json
 

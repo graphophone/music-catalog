@@ -2,17 +2,17 @@ use anyhow::Result;
 
 use crate::config::Config;
 
-pub mod tracks;
 pub mod categories;
 pub mod likes;
+pub mod music;
 
 #[derive(Clone)]
-pub struct MusicDb {
+pub struct CatalogDb {
     pub pool: sqlx::PgPool,
 }
 
-impl MusicDb {
-    pub async fn build(conf: &Config) -> Result<MusicDb> {
+impl CatalogDb {
+    pub async fn build(conf: &Config) -> Result<CatalogDb> {
         let url = format!(
             "postgres://{}:{}@{}:{}/{}",
             &conf.postgres.user,
@@ -23,6 +23,6 @@ impl MusicDb {
         );
         let pool = sqlx::postgres::PgPool::connect(&url).await?;
         sqlx::migrate!("./migrations").run(&pool).await?;
-        Ok(MusicDb { pool })
+        Ok(CatalogDb { pool })
     }
 }

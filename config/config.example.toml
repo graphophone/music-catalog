@@ -2,20 +2,17 @@
 host = "postgres"
 port = 5432
 user = "user"
-password = "pg-tracks-db"
-database = "tracks-db"
-
-[streaming]
-play_token_key = "some long base64 key"
+password = "pg-music-db"
+database = "music-db"
 
 [rustfs]
 access_key = "rustfsadmin"
 secret_key = "rustfsadmin"
 endpoint_url = "http://rustfs:9000"
 region = "eu-west-1"
-images_bucket = "images"
+thumbnails_bucket = "thumbnails"
 raw_audio_bucket = "raw-audio"
-streaming_audio_bucket = "streaming-audio"
+hls_audio_bucket = "streaming-audio"
 
 [rabbitmq]
 addr = "amqp://admin:secure_password@rabbitmq:5672"

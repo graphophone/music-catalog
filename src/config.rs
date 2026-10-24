@@ -4,7 +4,6 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub postgres: PostgresConfig,
-    pub streaming: StreamingConfig,
     pub rustfs: RustfsConfig,
     pub rabbitmq: RabbitmqConfig,
 }
@@ -28,19 +27,14 @@ pub struct PostgresConfig {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct StreamingConfig {
-    pub play_token_key: String,
-}
-
-#[derive(Debug, Deserialize)]
 pub struct RustfsConfig {
     pub access_key: String,
     pub secret_key: String,
     pub endpoint_url: String,
     pub region: String,
-    pub images_bucket: String,
+    pub thumbnails_bucket: String,
     pub raw_audio_bucket: String,
-    pub streaming_audio_bucket: String,
+    pub hls_audio_bucket: String,
 }
 
 #[derive(Debug, Deserialize)]

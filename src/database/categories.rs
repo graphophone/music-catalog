@@ -1,11 +1,11 @@
 use sqlx::PgConnection;
 
-use crate::database::MusicDb;
+use crate::database::CatalogDb;
 
 pub trait CategoriesDb {
-    async fn get_categories_for_track_with_transaction(
+    async fn get_categories_for_music_with_transaction(
         tx: &mut PgConnection,
-        track_id: i64,
+        music_id: i64,
     ) -> Result<Vec<CategoryData>, sqlx::Error>;
     async fn create_category(&self, category_name: String) -> Result<CategoryData, sqlx::Error>;
     async fn get_categories(
@@ -15,33 +15,34 @@ pub trait CategoriesDb {
         page_size: i32,
     ) -> Result<Vec<CategoryData>, sqlx::Error>;
     async fn get_categories_count(&self) -> Result<i64, sqlx::Error>;
-    async fn link_track_categories_with_transaction(
+    async fn link_music_categories_with_transaction(
         tx: &mut PgConnection,
-        track_id: i64,
+        music_id: i64,
         categories_ids: &[i64],
     ) -> Result<(), sqlx::Error>;
-    async fn unlink_track_categories_with_transaction(
+    async fn unlink_music_categories_with_transaction(
         tx: &mut PgConnection,
-        track_id: i64,
+        music_id: i64,
         categories_ids: &[i64],
     ) -> Result<(), sqlx::Error>;
 }
 
-impl CategoriesDb for MusicDb {
-    async fn get_categories_for_track_with_transaction(
+impl CategoriesDb for CatalogDb {
+    async fn get_categories_for_music_with_transaction(
         tx: &mut PgConnection,
-        track_id: i64,
+        music_id: i64,
     ) -> Result<Vec<CategoryData>, sqlx::Error> {
         let categories = sqlx::query_as!(
             CategoryData,
             r"SELECT c.*
             FROM categories c
-            JOIN tracks_categories tc
+            JOIN music_categories tc
             ON tc.category_id = c.id
-            WHERE tc.track_id = $1;",
-            track_id
-        ).fetch_all(&mut *tx)
-            .await?;
+            WHERE tc.music_id = $1;",
+            music_id
+        )
+        .fetch_all(&mut *tx)
+        .await?;
         Ok(categories)
     }
 
@@ -81,19 +82,20 @@ impl CategoriesDb for MusicDb {
         Ok(categories)
     }
 
-    async fn link_track_categories_with_transaction(
+    async fn link_music_categories_with_transaction(
         tx: &mut PgConnection,
-        track_id: i64,
+        music_id: i64,
         categories_ids: &[i64],
     ) -> Result<(), sqlx::Error> {
-        sqlx::query!(r"
-            INSERT INTO tracks_categories (track_id, category_id)
+        sqlx::query!(
+            r"
+            INSERT INTO music_categories (music_id, category_id)
             SELECT $1, *
             FROM (
                 SELECT * FROM UNNEST($2::bigint[])
             )
             ON CONFLICT DO NOTHING;",
-            track_id,
+            music_id,
             &categories_ids
         )
         .execute(tx)
@@ -101,17 +103,18 @@ impl CategoriesDb for MusicDb {
         Ok(())
     }
 
-    async fn unlink_track_categories_with_transaction(
+    async fn unlink_music_categories_with_transaction(
         tx: &mut PgConnection,
-        track_id: i64,
+        music_id: i64,
         categories_ids: &[i64],
     ) -> Result<(), sqlx::Error> {
-        sqlx::query!(r"
-            DELETE FROM tracks_categories 
+        sqlx::query!(
+            r"
+            DELETE FROM music_categories 
             WHERE
-                track_id = $1 AND
+                music_id = $1 AND
                 category_id NOT IN (SELECT * FROM UNNEST($2::bigint[]));",
-            track_id,
+            music_id,
             &categories_ids
         )
         .execute(tx)
@@ -120,7 +123,8 @@ impl CategoriesDb for MusicDb {
     }
 
     async fn get_categories_count(&self) -> Result<i64, sqlx::Error> {
-        let count = sqlx::query_scalar!(r"
+        let count = sqlx::query_scalar!(
+            r"
             SELECT COUNT(*)
             FROM categories;"
         )
@@ -142,13 +146,13 @@ mod tests {
     use std::sync::Arc;
 
     use super::*;
-    use crate::database::tracks::{TracksDb, UploadTrack};
+    use crate::database::music::{MusicDb, UploadMusic};
     use anyhow::Result;
     use tokio::task::JoinSet;
 
     #[sqlx::test]
     async fn text_create_categories(pool: sqlx::PgPool) -> Result<()> {
-        let db = MusicDb { pool };
+        let db = CatalogDb { pool };
         let c1_name = "Category 1".to_string();
         let c2_name = "Category 2".to_string();
         let c3_name = "Category 3".to_string();
@@ -169,7 +173,7 @@ mod tests {
 
     #[sqlx::test]
     async fn test_get_categories(pool: sqlx::PgPool) -> Result<()> {
-        let db = MusicDb { pool };
+        let db = CatalogDb { pool };
         let db_arc = Arc::new(db.clone());
         let mut futures = JoinSet::new();
         for i in 0..20 {
@@ -200,7 +204,7 @@ mod tests {
 
     #[sqlx::test]
     async fn test_get_categories_partial_page(pool: sqlx::PgPool) -> Result<()> {
-        let db = MusicDb { pool };
+        let db = CatalogDb { pool };
         let db_arc = Arc::new(db.clone());
         let mut futures = JoinSet::new();
         for i in 0..2 {
@@ -231,7 +235,7 @@ mod tests {
 
     #[sqlx::test]
     async fn test_get_categories_empty_page(pool: sqlx::PgPool) -> Result<()> {
-        let db = MusicDb { pool };
+        let db = CatalogDb { pool };
         let db_arc = Arc::new(db.clone());
         let mut futures = JoinSet::new();
         for i in 0..4 {
@@ -253,29 +257,29 @@ mod tests {
     }
 
     #[sqlx::test]
-    async fn test_link_track_categories_with_transaction(pool: sqlx::PgPool) -> Result<()> {
-        let db = MusicDb { pool };
+    async fn test_link_music_categories_with_transaction(pool: sqlx::PgPool) -> Result<()> {
+        let db = CatalogDb { pool };
         let (c1, c2, c3) = tokio::try_join!(
             db.create_category("Category 1".to_string()),
             db.create_category("Category 2".to_string()),
             db.create_category("Category 3".to_string()),
         )?;
 
-        let track_data1 = UploadTrack {
+        let music_data1 = UploadMusic {
             title: "test song 1".to_string(),
             description: Some("test description 1".to_string()),
             uploader_id: 1,
             categories_ids: vec![c1.id, c2.id],
         };
-        let t_id = db.save_track(&track_data1).await?;
+        let t_id = db.save_music(&music_data1).await?;
 
         let mut tx = db.pool.begin().await?;
         let new_cats_ids: Vec<i64> = vec![c1.id, c3.id];
-        MusicDb::link_track_categories_with_transaction(&mut tx, t_id, &new_cats_ids).await?;
+        CatalogDb::link_music_categories_with_transaction(&mut tx, t_id, &new_cats_ids).await?;
         tx.commit().await?;
 
-        let track_data = db.get_full_track(t_id).await?;
-        let mut categories = track_data.categories;
+        let music_data = db.get_full_music(t_id).await?;
+        let mut categories = music_data.categories;
         categories.sort_by_key(|c| c.id);
         let mut expected_cats = vec![c1, c2, c3];
         expected_cats.sort_by_key(|c| c.id);
@@ -284,32 +288,31 @@ mod tests {
     }
 
     #[sqlx::test]
-    async fn test_unlink_track_categories_with_transaction(pool: sqlx::PgPool) -> Result<()> {
-        let db = MusicDb { pool };
+    async fn test_unlink_music_categories_with_transaction(pool: sqlx::PgPool) -> Result<()> {
+        let db = CatalogDb { pool };
         let (c1, c2, c3) = tokio::try_join!(
             db.create_category("Category 1".to_string()),
             db.create_category("Category 2".to_string()),
             db.create_category("Category 3".to_string()),
         )?;
 
-        let track_data1 = UploadTrack {
+        let music_data1 = UploadMusic {
             title: "test song 1".to_string(),
             description: Some("test description 1".to_string()),
             uploader_id: 1,
             categories_ids: vec![c1.id, c2.id],
         };
-        let t_id = db.save_track(&track_data1).await?;
+        let t_id = db.save_music(&music_data1).await?;
 
         let mut tx = db.pool.begin().await?;
         let new_cats_ids: Vec<i64> = vec![c1.id, c3.id];
-        MusicDb::link_track_categories_with_transaction(&mut tx, t_id, &new_cats_ids).await?;
-
-        MusicDb::unlink_track_categories_with_transaction(&mut tx, t_id, &new_cats_ids).await?;
+        CatalogDb::link_music_categories_with_transaction(&mut tx, t_id, &new_cats_ids).await?;
+        CatalogDb::unlink_music_categories_with_transaction(&mut tx, t_id, &new_cats_ids).await?;
 
         tx.commit().await?;
 
-        let track_data = db.get_full_track(t_id).await?;
-        let mut categories = track_data.categories;
+        let music_data = db.get_full_music(t_id).await?;
+        let mut categories = music_data.categories;
         categories.sort_by_key(|c| c.id);
         let mut expected_cats = vec![c1, c3];
         expected_cats.sort_by_key(|c| c.id);
@@ -319,7 +322,7 @@ mod tests {
 
     #[sqlx::test]
     async fn test_get_categories_count(pool: sqlx::PgPool) -> Result<()> {
-        let db = MusicDb { pool };
+        let db = CatalogDb { pool };
         tokio::try_join!(
             db.create_category("Category 1".to_string()),
             db.create_category("Category 2".to_string()),
@@ -333,7 +336,7 @@ mod tests {
 
     #[sqlx::test]
     async fn test_get_categories_count_with_duplicate(pool: sqlx::PgPool) -> Result<()> {
-        let db = MusicDb { pool };
+        let db = CatalogDb { pool };
         let _ = tokio::try_join!(
             db.create_category("Category 1".to_string()),
             db.create_category("Category 2".to_string()),

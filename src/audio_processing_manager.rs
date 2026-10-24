@@ -26,11 +26,11 @@ impl AudioProcessingManager {
 
     pub async fn send_audio_processing_request(
         &self,
-        track_id: i64,
+        music_id: i64,
         audio_id: &str,
     ) -> anyhow::Result<()> {
         let req = serde_json::json!({
-            "track_id": track_id,
+            "music_id": music_id,
             "audio_id": audio_id,
         });
 

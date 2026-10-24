@@ -5,11 +5,11 @@ use tower_http::trace::TraceLayer;
 
 use crate::{
     audio_processing_manager::AudioProcessingManager,
-    database::MusicDb,
+    database::CatalogDb,
     services::{
         categories_service::{CategoriesServer, CategoriesService},
         likes_service::{LikesService, likes::likes_server::LikesServer},
-        tracks_service::{TracksServer, TracksService},
+        music_service::{MusicServer, MusicService},
     },
 };
 
@@ -18,33 +18,30 @@ pub mod audio_processing_manager;
 pub mod config;
 mod database;
 pub mod services;
-pub mod token;
 
 pub async fn run(conf: &config::Config) -> Result<(), Box<dyn Error>> {
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::DEBUG)
         .init();
 
-    let music_db = MusicDb::build(&conf).await?;
-    let music_db = Arc::new(music_db);
+    let catalog_db = Arc::new(CatalogDb::build(&conf).await?);
 
     let audio_processing_manager = Arc::new(AudioProcessingManager::build(&conf.rabbitmq).await?);
 
     let addr: SocketAddr = "0.0.0.0:8080".parse()?;
-    let tracks_service = TracksService::build(
+    let music_service = MusicService::build(
         &conf.rustfs,
-        Arc::clone(&music_db),
-        conf.streaming.play_token_key.clone(),
+        Arc::clone(&catalog_db),
         audio_processing_manager,
     )
     .await?;
-    let categories_service = CategoriesService::build(Arc::clone(&music_db));
-    let likes_service = LikesService::build(Arc::clone(&music_db));
+    let categories_service = CategoriesService::build(Arc::clone(&catalog_db));
+    let likes_service = LikesService::build(Arc::clone(&catalog_db));
 
     println!("serving music catalog grpc api: {}", &addr);
     Server::builder()
         .layer(TraceLayer::new_for_grpc())
-        .add_service(TracksServer::new(tracks_service))
+        .add_service(MusicServer::new(music_service))
         .add_service(CategoriesServer::new(categories_service))
         .add_service(LikesServer::new(likes_service))
         .serve(addr)

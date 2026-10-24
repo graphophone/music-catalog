@@ -1,18 +1,18 @@
 services:
   postgres:
     image: postgres:18-alpine
-    container_name: postgres-tracks
+    container_name: postgres-music
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: pg-tracks-db
-      POSTGRES_DB: tracks-db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+      POSTGRES_DB: music_db
     healthcheck:
       interval: 10s
       retries: 3
       start_period: 30s
       test: ["CMD-SHELL", "pg_isready" ]
     networks:
-      - postgres-tracks-db
+      - postgres-music-db
     volumes:
       - postgres-data:/var/lib/postgresql/docker
 
@@ -31,7 +31,7 @@ services:
     
   rustfs:
     image: rustfs/rustfs:1.0.0-rc.3
-    container_name: rustfs-tracks-images
+    container_name: rustfs-music-images
     depends_on:
       - volume-permissions-helper
     security_opt:
@@ -171,7 +171,7 @@ services:
       - rabbitmq_data:/var/lib/rabbitmq
       - rabbitmq_log:/var/log/rabbitmq
 
-  tracks-catalog-svc:
+  music-catalog-svc:
     build:
       context: .
       dockerfile: Dockerfile.dev
@@ -183,7 +183,7 @@ services:
       rabbitmq:
         condition: service_healthy
     networks:
-      - postgres-tracks-db
+      - postgres-music-db
       - rustfs-network
       - rabbitmq-network
     volumes:
@@ -204,5 +204,5 @@ networks:
     driver: bridge
   rustfs-network:
     driver: bridge
-  postgres-tracks-db:
+  postgres-music-db:
     driver: bridge

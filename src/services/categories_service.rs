@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    database::{MusicDb, categories::CategoriesDb},
+    database::{CatalogDb, categories::CategoriesDb},
     services::categories_service::categories::{
         CategoriesPage, CategoryData, CreateCategoryReq, GetCategoriesReq,
     },
@@ -15,12 +15,12 @@ pub mod categories {
 }
 
 pub struct CategoriesService {
-    music_db: Arc<MusicDb>,
+    catalog_db: Arc<CatalogDb>,
 }
 
 impl CategoriesService {
-    pub fn build(music_db: Arc<MusicDb>) -> CategoriesService {
-        CategoriesService { music_db }
+    pub fn build(catalog_db: Arc<CatalogDb>) -> CategoriesService {
+        CategoriesService { catalog_db }
     }
 }
 
@@ -31,7 +31,7 @@ impl Categories for CategoriesService {
         req: Request<CreateCategoryReq>,
     ) -> Result<Response<CategoryData>, Status> {
         let req = req.into_inner();
-        let res = self.music_db.create_category(req.name).await;
+        let res = self.catalog_db.create_category(req.name).await;
         let category = match res {
             Ok(v) => v,
             Err(e) => return Err(Status::from_error(Box::new(e))),
@@ -48,9 +48,9 @@ impl Categories for CategoriesService {
     ) -> Result<Response<CategoriesPage>, Status> {
         let req = req.into_inner();
         let categories_fut =
-            self.music_db
+            self.catalog_db
                 .get_categories(&req.search_token, req.page_number, req.page_size);
-        let count_fut = self.music_db.get_categories_count();
+        let count_fut = self.catalog_db.get_categories_count();
 
         let futs_res = tokio::try_join!(categories_fut, count_fut,);
 
