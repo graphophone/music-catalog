@@ -39,12 +39,6 @@ message UploadAssetReq {
     int64 uploader_id = 3;
 }
 
-message UploadMusicAudioReq {
-    string music_id = 1;
-    string mime_type = 2;
-
-}
-
 message UploadAssetRes {
     string upload_url = 1;
     string asset_id = 2;

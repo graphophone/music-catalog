@@ -9,6 +9,7 @@ database = "music-db"
 access_key = "rustfsadmin"
 secret_key = "rustfsadmin"
 endpoint_url = "http://rustfs:9000"
+deployed_url = "http://localhost:9000"
 region = "eu-west-1"
 thumbnails_bucket = "thumbnails"
 raw_audio_bucket = "raw-audio"
@@ -16,4 +17,4 @@ hls_audio_bucket = "streaming-audio"
 
 [rabbitmq]
 addr = "amqp://admin:secure_password@rabbitmq:5672"
-queue = "audio_processing_queue"
+queue = "audio"

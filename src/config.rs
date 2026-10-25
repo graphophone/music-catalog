@@ -31,6 +31,7 @@ pub struct RustfsConfig {
     pub access_key: String,
     pub secret_key: String,
     pub endpoint_url: String,
+    pub deployed_url: String,
     pub region: String,
     pub thumbnails_bucket: String,
     pub raw_audio_bucket: String,

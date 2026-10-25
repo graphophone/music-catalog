@@ -31,9 +31,8 @@ impl AssetStorage {
         let rustfs_client = Client::from_conf(s3_config);
         Self::ensure_bucket(&rustfs_client, &bucket).await;
 
-        // FIX LATER
         let offline_conf = Config::builder()
-            .endpoint_url("http://localhost:19020")
+            .endpoint_url(&conf.deployed_url)
             .behavior_version_latest()
             .region(Region::new(conf.region.clone()))
             .credentials_provider(credentials)

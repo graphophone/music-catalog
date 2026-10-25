@@ -20,7 +20,7 @@ pub struct MusicService {
     catalog_db: Arc<CatalogDb>,
     thumbnail_storage: Arc<AssetStorage>,
     raw_audio_storage: Arc<AssetStorage>,
-    streaming_audio_storage: Arc<AssetStorage>,
+    hls_audio_storage: Arc<AssetStorage>,
     audio_processing_manager: Arc<AudioProcessingManager>,
 }
 
@@ -40,7 +40,7 @@ impl MusicService {
             catalog_db: music_db,
             thumbnail_storage: Arc::new(is),
             raw_audio_storage: Arc::new(ras),
-            streaming_audio_storage: Arc::new(sas),
+            hls_audio_storage: Arc::new(sas),
             audio_processing_manager,
         })
     }
@@ -314,7 +314,12 @@ impl Music for MusicService {
         self.audio_processing_manager
             .send_audio_processing_request(req.music_id, &req.asset_id)
             .await
-            .map_err(|_| Status::internal("failed to send audio processing request"))?;
+            .map_err(|e| {
+                Status::internal(format!(
+                    "failed to send audio processing request: {}",
+                    e.to_string()
+                ))
+            })?;
 
         Ok(Response::new(Empty {}))
     }
