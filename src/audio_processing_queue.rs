@@ -1,11 +1,11 @@
 use crate::config;
 
-pub struct AudioProcessingManager {
+pub struct AudioProcessingQueue {
     channel: lapin::Channel,
     queue: lapin::types::ShortString,
 }
 
-impl AudioProcessingManager {
+impl AudioProcessingQueue {
     pub async fn build(conf: &config::RabbitmqConfig) -> anyhow::Result<Self> {
         let connection =
             lapin::Connection::connect(&conf.addr, lapin::ConnectionProperties::default()).await?;
@@ -21,7 +21,7 @@ impl AudioProcessingManager {
             )
             .await?;
 
-        Ok(AudioProcessingManager { channel, queue })
+        Ok(AudioProcessingQueue { channel, queue })
     }
 
     pub async fn send_audio_processing_request(

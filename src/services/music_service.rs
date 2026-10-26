@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::asset_storage::AssetStorage;
-use crate::audio_processing_manager::AudioProcessingManager;
+use crate::audio_processing_queue::AudioProcessingQueue;
 use crate::config::RustfsConfig;
 use crate::database;
 use crate::database::CatalogDb;
@@ -21,19 +21,19 @@ pub struct MusicService {
     thumbnail_storage: Arc<AssetStorage>,
     raw_audio_storage: Arc<AssetStorage>,
     hls_audio_storage: Arc<AssetStorage>,
-    audio_processing_manager: Arc<AudioProcessingManager>,
+    audio_processing_queue: Arc<AudioProcessingQueue>,
 }
 
 impl MusicService {
     pub async fn build(
         storage_conf: &RustfsConfig,
         music_db: Arc<CatalogDb>,
-        audio_processing_manager: Arc<AudioProcessingManager>,
+        audio_processing_queue: Arc<AudioProcessingQueue>,
     ) -> anyhow::Result<MusicService> {
         let (is, ras, sas) = tokio::try_join!(
-            AssetStorage::build(storage_conf.thumbnails_bucket.clone(), storage_conf,),
-            AssetStorage::build(storage_conf.raw_audio_bucket.clone(), storage_conf,),
-            AssetStorage::build(storage_conf.hls_audio_bucket.clone(), storage_conf,),
+            AssetStorage::build(storage_conf.thumbnails_bucket.clone(), storage_conf),
+            AssetStorage::build(storage_conf.raw_audio_bucket.clone(), storage_conf),
+            AssetStorage::build(storage_conf.hls_audio_bucket.clone(), storage_conf),
         )?;
 
         Ok(MusicService {
@@ -41,7 +41,7 @@ impl MusicService {
             thumbnail_storage: Arc::new(is),
             raw_audio_storage: Arc::new(ras),
             hls_audio_storage: Arc::new(sas),
-            audio_processing_manager,
+            audio_processing_queue,
         })
     }
 }
@@ -311,7 +311,7 @@ impl Music for MusicService {
             .await
             .map_err(|_| Status::internal("failed to update upload status"))?;
 
-        self.audio_processing_manager
+        self.audio_processing_queue
             .send_audio_processing_request(req.music_id, &req.asset_id)
             .await
             .map_err(|e| {
