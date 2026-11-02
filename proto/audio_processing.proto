@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package audio_processing;
+
+service AudioProcessing {
+    rpc NotifyAudioProcessingFailed(MusicId) returns (Empty);
+    rpc NotifyAudioProcessingStarted(MusicId) returns (Empty);
+    rpc NotifyAudioProcessingFinished(HslId) returns (Empty);
+}
+
+message Empty {}
+
+message MusicId {
+    int64 music_id = 1;
+}
+
+message HslId {
+    int64 music_id = 1;
+    int64 duration_seconds = 2;
+    string hls_id = 3;
+}

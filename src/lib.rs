@@ -8,6 +8,10 @@ use crate::{
     audio_processing_queue::AudioProcessingQueue,
     database::CatalogDb,
     services::{
+        audio_processing_service::{
+            AudioProcessingService,
+            audio_processing::audio_processing_server::AudioProcessingServer,
+        },
         categories_service::{CategoriesServer, CategoriesService},
         likes_service::{LikesService, likes::likes_server::LikesServer},
         music_service::{MusicServer, MusicService},
@@ -38,6 +42,7 @@ pub async fn run(conf: &config::Config) -> Result<(), Box<dyn Error>> {
     .await?;
     let categories_service = CategoriesService::build(Arc::clone(&catalog_db));
     let likes_service = LikesService::build(Arc::clone(&catalog_db));
+    let audio_processing_service = AudioProcessingService::new(Arc::clone(&catalog_db));
 
     println!("serving music catalog grpc api: {}", &addr);
     Server::builder()
@@ -45,6 +50,7 @@ pub async fn run(conf: &config::Config) -> Result<(), Box<dyn Error>> {
         .add_service(MusicServer::new(music_service))
         .add_service(CategoriesServer::new(categories_service))
         .add_service(LikesServer::new(likes_service))
+        .add_service(AudioProcessingServer::new(audio_processing_service))
         .serve(addr)
         .await?;
     println!("music catalog server is down");

@@ -9,6 +9,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "proto/music.proto",
                 "proto/categories.proto",
                 "proto/likes.proto",
+                "proto/audio_processing.proto",
             ],
             &["proto"],
         )?;
