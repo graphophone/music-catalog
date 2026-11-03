@@ -5,7 +5,7 @@ use tonic::{Request, Response, Status};
 use crate::{
     database::{
         CatalogDb,
-        music::{LinkAudio, MusicDb, UpdateUploadStatus},
+        music::{LinkAudio, MusicDb},
     },
     services::audio_processing_service::audio_processing::{
         Empty, HslId, MusicId, audio_processing_server::AudioProcessing,
@@ -35,13 +35,7 @@ impl AudioProcessing for AudioProcessingService {
         let req = req.into_inner();
 
         self.catalog_db
-            .update_upload_status(
-                req.music_id,
-                &UpdateUploadStatus {
-                    new_status: "upload_failed".to_string(),
-                    uploader_id: 123,
-                },
-            )
+            .update_upload_status(req.music_id, "upload_failed")
             .await
             .map_err(|_| Status::internal("fail"))?;
 
@@ -55,13 +49,7 @@ impl AudioProcessing for AudioProcessingService {
         let req = req.into_inner();
 
         self.catalog_db
-            .update_upload_status(
-                req.music_id,
-                &UpdateUploadStatus {
-                    new_status: "processing_started".to_string(),
-                    uploader_id: 123,
-                },
-            )
+            .update_upload_status(req.music_id, "processing_started")
             .await
             .map_err(|_| Status::internal("fail"))?;
 
@@ -80,20 +68,13 @@ impl AudioProcessing for AudioProcessingService {
                 &LinkAudio {
                     audio_uri: req.hls_id,
                     duration_seconds: req.duration_seconds,
-                    uploader_id: 123,
                 },
             )
             .await
-            .map_err(|_| Status::internal("failed to link audio"));
+            .map_err(|_| Status::internal("failed to link audio"))?;
 
         self.catalog_db
-            .update_upload_status(
-                req.music_id,
-                &UpdateUploadStatus {
-                    new_status: "uploaded".to_string(),
-                    uploader_id: 123,
-                },
-            )
+            .update_upload_status(req.music_id, "uploaded")
             .await
             .map_err(|_| Status::internal("fail"))?;
 

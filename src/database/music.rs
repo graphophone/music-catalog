@@ -6,25 +6,22 @@ use crate::database::{
 };
 
 pub trait MusicDb {
+    async fn check_uploader(&self, music_id: i64, uploader_id: i64) -> sqlx::Result<()>;
     async fn get_full_music(&self, music_id: i64) -> Result<FullMusic, sqlx::Error>;
     async fn save_music(&self, music: &UploadMusic) -> Result<i64, sqlx::Error>;
     async fn update_music(&self, music_id: i64, data: &UpdateMusic) -> Result<(), sqlx::Error>;
     async fn update_thumbnail(
         &self,
         music_id: i64,
-        data: &UpdateThumbnail,
+        thumbnail_id: Option<String>,
     ) -> Result<Option<String>, sqlx::Error>;
-    async fn remove_music(
-        &self,
-        music_id: i64,
-        uploader_id: i64,
-    ) -> Result<MusicAssets, sqlx::Error>;
-    async fn link_music_audio(&self, music_id: i64, link: &LinkAudio) -> Result<(), sqlx::Error>;
+    async fn remove_music(&self, music_id: i64) -> Result<MusicAssets, sqlx::Error>;
+    async fn link_music_audio(&self, music_id: i64, data: &LinkAudio) -> Result<(), sqlx::Error>;
     async fn register_play(&self, music_id: i64) -> Result<String, sqlx::Error>;
     async fn update_upload_status(
         &self,
         music_id: i64,
-        data: &UpdateUploadStatus,
+        new_status: &str,
     ) -> Result<(), sqlx::Error>;
 }
 
@@ -111,11 +108,10 @@ impl MusicDb for CatalogDb {
         let res = sqlx::query!(
             r"
             UPDATE music SET title = $1, description = $2
-            WHERE id = $3 AND uploader_id = $4;",
+            WHERE id = $3;",
             &data.title,
             data.description,
             music_id,
-            data.uploader_id,
         )
         .execute(&mut *tx)
         .await?;
@@ -136,32 +132,27 @@ impl MusicDb for CatalogDb {
     async fn update_thumbnail(
         &self,
         music_id: i64,
-        data: &UpdateThumbnail,
+        thumbnail_id: Option<String>,
     ) -> Result<Option<String>, sqlx::Error> {
         let old_thumbnail_id = sqlx::query_scalar!(
             r"
             UPDATE music SET thumbnail_id = $1
-            WHERE id = $2 AND uploader_id = $3
+            WHERE id = $2
             RETURNING OLD.thumbnail_id;",
-            data.thumbnail_id,
+            thumbnail_id,
             music_id,
-            data.uploader_id,
         )
         .fetch_one(&self.pool)
         .await?;
         Ok(old_thumbnail_id)
     }
 
-    async fn remove_music(
-        &self,
-        music_id: i64,
-        uploader_id: i64,
-    ) -> Result<MusicAssets, sqlx::Error> {
+    async fn remove_music(&self, music_id: i64) -> Result<MusicAssets, sqlx::Error> {
         let res = sqlx::query!(
             r"
             WITH ctx AS (
                 DELETE FROM music
-                WHERE id = $1 AND uploader_id = $2
+                WHERE id = $1
                 RETURNING id, thumbnail_id
             )
             SELECT thumbnail_id, audio_uri
@@ -169,7 +160,6 @@ impl MusicDb for CatalogDb {
             RIGHT JOIN ctx
             ON music_id = id",
             music_id,
-            uploader_id,
         )
         .fetch_optional(&self.pool)
         .await?;
@@ -183,7 +173,7 @@ impl MusicDb for CatalogDb {
         }
     }
 
-    async fn link_music_audio(&self, music_id: i64, link: &LinkAudio) -> Result<(), sqlx::Error> {
+    async fn link_music_audio(&self, music_id: i64, data: &LinkAudio) -> Result<(), sqlx::Error> {
         let mut tx = self.pool.begin().await?;
 
         let res1 = sqlx::query!(
@@ -191,15 +181,14 @@ impl MusicDb for CatalogDb {
             WITH ctx AS (
                 SELECT id
                 FROM music
-                WHERE id = $1 AND uploader_id = $2
+                WHERE id = $1
             )
             INSERT INTO music_audio (music_id, audio_uri, duration_seconds)
-            SELECT id, $3, $4
+            SELECT id, $2, $3
             FROM ctx",
             music_id,
-            link.uploader_id,
-            &link.audio_uri,
-            link.duration_seconds,
+            &data.audio_uri,
+            data.duration_seconds,
         )
         .execute(&mut *tx)
         .await?;
@@ -241,15 +230,14 @@ impl MusicDb for CatalogDb {
     async fn update_upload_status(
         &self,
         music_id: i64,
-        data: &UpdateUploadStatus,
+        new_status: &str,
     ) -> Result<(), sqlx::Error> {
         let res = sqlx::query!(
             r"
-            UPDATE music SET upload_status = $3
-            WHERE id = $1 AND uploader_id = $2;",
+            UPDATE music SET upload_status = $2
+            WHERE id = $1;",
             music_id,
-            data.uploader_id,
-            data.new_status,
+            new_status,
         )
         .execute(&self.pool)
         .await?;
@@ -258,6 +246,21 @@ impl MusicDb for CatalogDb {
             return Err(sqlx::Error::RowNotFound);
         }
 
+        Ok(())
+    }
+
+    async fn check_uploader(&self, music_id: i64, uploader_id: i64) -> sqlx::Result<()> {
+        sqlx::query!(
+            r"
+            SELECT id
+            FROM music
+            WHERE id = $1 AND uploader_id = $2;
+        ",
+            music_id,
+            uploader_id
+        )
+        .fetch_one(&self.pool)
+        .await?;
         Ok(())
     }
 }
@@ -293,23 +296,11 @@ pub struct UpdateMusic {
     pub title: String,
     pub description: Option<String>,
     pub categories_ids: Vec<i64>,
-    pub uploader_id: i64,
-}
-
-pub struct UpdateThumbnail {
-    pub thumbnail_id: Option<String>,
-    pub uploader_id: i64,
-}
-
-pub struct UpdateUploadStatus {
-    pub new_status: String,
-    pub uploader_id: i64,
 }
 
 pub struct LinkAudio {
     pub audio_uri: String,
     pub duration_seconds: i64,
-    pub uploader_id: i64,
 }
 
 #[cfg(test)]
@@ -385,20 +376,12 @@ mod tests {
             title: "new title 1".to_string(),
             description: Some("new description".to_string()),
             categories_ids: vec![c2.id, c4.id],
-            uploader_id: 1,
         };
         let thumbnail_id = "test url".to_string();
 
         let id1 = db.save_music(&music_data1).await?;
         db.update_music(id1, &update_music1).await?;
-        db.update_thumbnail(
-            id1,
-            &UpdateThumbnail {
-                thumbnail_id: Some(thumbnail_id.clone()),
-                uploader_id: 1,
-            },
-        )
-        .await?;
+        db.update_thumbnail(id1, Some("test".to_string())).await?;
         let full_data = db.get_full_music(id1).await?;
 
         assert_eq!(
@@ -431,7 +414,7 @@ mod tests {
         };
 
         let id1 = db.save_music(&music_data1).await?;
-        db.remove_music(id1, 1).await?;
+        db.remove_music(id1).await?;
         let full_data = db.get_full_music(id1).await;
 
         match full_data {
@@ -452,7 +435,6 @@ mod tests {
         let audio_ = LinkAudio {
             audio_uri: "some uri".to_string(),
             duration_seconds: 123,
-            uploader_id: 1,
         };
 
         let id1 = db.save_music(&music_data1).await?;
@@ -490,7 +472,6 @@ mod tests {
         let audio_ = LinkAudio {
             audio_uri: "some uri".to_string(),
             duration_seconds: 123,
-            uploader_id: 1,
         };
 
         let id1 = db.save_music(&music_data1).await?;

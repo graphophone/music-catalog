@@ -5,7 +5,7 @@ use crate::audio_processing_queue::AudioProcessingQueue;
 use crate::config::RustfsConfig;
 use crate::database;
 use crate::database::CatalogDb;
-use crate::database::music::{MusicDb, UpdateThumbnail, UpdateUploadStatus};
+use crate::database::music::MusicDb;
 use music::music_server::Music;
 use music::*;
 use tonic::{Request, Response, Status};
@@ -112,7 +112,6 @@ impl Music for MusicService {
             title: req.title,
             description: req.description,
             categories_ids: req.categories_ids,
-            uploader_id: req.uploader_id,
         };
         let query_res = self
             .catalog_db
@@ -152,13 +151,7 @@ impl Music for MusicService {
 
         let old_thumbnail_id = self
             .catalog_db
-            .update_thumbnail(
-                req.music_id,
-                &UpdateThumbnail {
-                    thumbnail_id: Some(req.asset_id),
-                    uploader_id: req.uploader_id,
-                },
-            )
+            .update_thumbnail(req.music_id, Some(req.asset_id))
             .await
             .map_err(|e| Status::from_error(Box::new(e)))?;
 
@@ -181,13 +174,7 @@ impl Music for MusicService {
 
         let old_thumbnail_id = self
             .catalog_db
-            .update_thumbnail(
-                req.music_id,
-                &UpdateThumbnail {
-                    thumbnail_id: None,
-                    uploader_id: req.uploader_id,
-                },
-            )
+            .update_thumbnail(req.music_id, None)
             .await
             .map_err(|e| Status::from_error(Box::new(e)))?;
 
@@ -205,10 +192,7 @@ impl Music for MusicService {
     async fn remove_music(&self, req: Request<RemoveMusicReq>) -> Result<Response<Empty>, Status> {
         let req = req.into_inner();
 
-        let res = self
-            .catalog_db
-            .remove_music(req.music_id, req.uploader_id)
-            .await;
+        let res = self.catalog_db.remove_music(req.music_id).await;
 
         let assets = match res {
             Ok(v) => v,
@@ -228,7 +212,7 @@ impl Music for MusicService {
         };
 
         match assets.audio_uri {
-            Some(audio_uri) => {
+            Some(_) => {
                 // send remove request to music storage
             }
             None => (),
@@ -246,7 +230,6 @@ impl Music for MusicService {
         let link = database::music::LinkAudio {
             audio_uri: req.audio_uri,
             duration_seconds: req.duration_seconds,
-            uploader_id: req.uploader_id,
         };
         let query_res = self.catalog_db.link_music_audio(req.music_id, &link).await;
 
@@ -301,13 +284,7 @@ impl Music for MusicService {
         let req = req.into_inner();
 
         self.catalog_db
-            .update_upload_status(
-                req.music_id,
-                &UpdateUploadStatus {
-                    uploader_id: req.uploader_id,
-                    new_status: "waiting_for_processing".to_string(),
-                },
-            )
+            .update_upload_status(req.music_id, "waiting_for_processing")
             .await
             .map_err(|_| Status::internal("failed to update upload status"))?;
 
@@ -322,5 +299,21 @@ impl Music for MusicService {
             })?;
 
         Ok(Response::new(Empty {}))
+    }
+
+    async fn check_uploader(
+        &self,
+        req: Request<CheckUploaderReq>,
+    ) -> Result<Response<Empty>, Status> {
+        let req = req.into_inner();
+
+        match self
+            .catalog_db
+            .check_uploader(req.music_id, req.uploader_id)
+            .await
+        {
+            Ok(_) => Ok(Response::new(Empty {})),
+            Err(_) => Err(Status::unauthenticated("not authenticated")),
+        }
     }
 }

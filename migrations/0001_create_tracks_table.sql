@@ -10,6 +10,9 @@ CREATE TABLE IF NOT EXISTS music (
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
+CREATE INDEX idx_music_uploader
+ON music (uploader_id);
+
 CREATE TABLE IF NOT EXISTS categories (
     id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL UNIQUE
