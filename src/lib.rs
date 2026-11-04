@@ -4,7 +4,6 @@ use tonic::transport::Server;
 use tower_http::trace::TraceLayer;
 
 use crate::{
-    asset_storage::AssetStorage,
     audio_processing_queue::AudioProcessingQueue,
     database::CatalogDb,
     services::{

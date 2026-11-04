@@ -13,7 +13,7 @@ deployed_url = "http://localhost:9000"
 region = "eu-west-1"
 thumbnails_bucket = "thumbnails"
 raw_audio_bucket = "raw-audio"
-hls_audio_bucket = "streaming-audio"
+hls_audio_bucket = "hls-audio"
 
 [rabbitmq]
 addr = "amqp://admin:secure_password@rabbitmq:5672"
