@@ -67,13 +67,6 @@ impl Music for MusicService {
             Err(e) => return Err(Status::from_error(Box::new(e))),
         };
 
-        tracing::warn!(
-            "is liked (user {:?}, music {}): {}",
-            req.user_id,
-            req.music_id,
-            music.is_liked
-        );
-
         let res = FullMusic {
             id: music.id,
             title: music.title,
@@ -352,5 +345,41 @@ impl Music for MusicService {
             Ok(_) => Ok(Response::new(Empty {})),
             Err(_) => Err(Status::unauthenticated("not authenticated")),
         }
+    }
+
+    async fn get_user_music(
+        &self,
+        req: Request<UserMusicReq>,
+    ) -> Result<Response<UserMusicPage>, Status> {
+        let req = req.into_inner();
+
+        let res = self
+            .catalog_db
+            .get_user_music(req.user_id, req.page_number, req.requester_id)
+            .await;
+
+        let (music_entries, total_pages) = match res {
+            Ok((entries, count)) => (entries, count),
+            Err(_) => return Err(Status::internal("failed to get user music")),
+        };
+
+        Ok(Response::new(UserMusicPage {
+            music_entries: music_entries
+                .into_iter()
+                .map(|m| UserMusic {
+                    id: m.id,
+                    title: m.title,
+                    thumbnail_id: m
+                        .thumbnail_id
+                        .map(|v| self.thumbnail_storage.prepare_asset_id(&v)),
+                    duration_seconds: m.duration_seconds,
+                    play_count: m.play_count,
+                    like_count: m.like_count,
+                    is_liked: m.is_liked,
+                    upload_status: m.upload_status,
+                })
+                .collect::<Vec<UserMusic>>(),
+            total_pages,
+        }))
     }
 }

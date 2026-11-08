@@ -15,9 +15,33 @@ service Music {
     rpc RemoveMusic(RemoveMusicReq) returns (Empty);
     rpc LinkMusicAudio(LinkMusicAudioReq) returns (Empty);
     rpc RequestMusicPlay(MusicId) returns (MusicPlayResponse);
+
+    rpc GetUserMusic(UserMusicReq) returns (UserMusicPage);
 }
 
 message Empty {}
+
+message UserMusicReq {
+    int64 user_id = 1;
+    int32 page_number = 2;
+    optional int64 requester_id = 3;
+}
+
+message UserMusic {
+    int64 id = 1;
+    string title = 2;
+    optional string thumbnail_id = 3;
+    optional int64 duration_seconds = 4;
+    int64 play_count = 5;
+    int64 like_count = 6;
+    bool is_liked = 7;
+    string upload_status = 8;
+}
+
+message UserMusicPage {
+    repeated UserMusic music_entries = 1;
+    int64 total_pages = 2;
+}
 
 message CheckUploaderReq {
     int64 music_id = 1;

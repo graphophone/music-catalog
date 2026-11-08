@@ -32,9 +32,65 @@ pub trait MusicDb {
         new_status: &str,
     ) -> Result<(), sqlx::Error>;
     async fn set_raw_audio(&self, music_id: i64, raw_audio_id: &str) -> Result<(), sqlx::Error>;
+    async fn get_user_music(
+        &self,
+        user_id: i64,
+        page_number: i32,
+        requester_id: Option<i64>,
+    ) -> Result<(Vec<UserMusic>, i64), sqlx::Error>;
 }
 
 impl MusicDb for CatalogDb {
+    async fn get_user_music(
+        &self,
+        user_id: i64,
+        page_number: i32,
+        requester_id: Option<i64>,
+    ) -> Result<(Vec<UserMusic>, i64), sqlx::Error> {
+        let mut tx = self.pool.begin().await?;
+
+        let entries = sqlx::query_as!(
+            UserMusic,
+            r#"
+            SELECT
+                T.id,
+                T.title,
+                T.thumbnail_id,
+                T.duration_seconds,
+                T.play_count,
+                COUNT(ML.user_id) AS "like_count!",
+                COALESCE(BOOL_OR(ML.user_id = $3), FALSE) AS "is_liked!",
+                T.upload_status
+            FROM music T
+            LEFT JOIN music_likes ML
+                ON T.id = ML.music_id
+            WHERE T.uploader_id = $1
+            GROUP BY T.id
+            ORDER BY T.created_at DESC
+            LIMIT 10 OFFSET $2;"#,
+            user_id,
+            (page_number as i64 - 1) * 10,
+            requester_id,
+        )
+        .fetch_all(&mut *tx)
+        .await?;
+
+        let count = sqlx::query_scalar!(
+            r"
+            SELECT COUNT(*)
+            FROM music
+            WHERE uploader_id = $1;",
+            user_id
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+
+        let count = (count.unwrap_or(0) as f64 / 10.0).ceil() as i64;
+
+        tx.commit().await?;
+        Ok((entries, count))
+    }
+
     async fn get_full_music(
         &self,
         music_id: i64,
@@ -288,6 +344,17 @@ pub struct FullMusic {
     pub categories: Vec<CategoryData>,
     pub upload_status: String,
     pub created_at: time::OffsetDateTime,
+}
+
+pub struct UserMusic {
+    pub id: i64,
+    pub title: String,
+    pub thumbnail_id: Option<String>,
+    pub duration_seconds: Option<i64>,
+    pub play_count: i64,
+    pub like_count: i64,
+    pub is_liked: bool,
+    pub upload_status: String,
 }
 
 pub struct MusicAssets {
