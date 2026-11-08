@@ -3,24 +3,18 @@ syntax = "proto3";
 package likes;
 
 service Likes {
-    rpc like_music(LikeMusicRequest) returns (Empty);
-    rpc unlike_music(UnlikeMusicRequest) returns (Empty);
-    rpc get_user_liked(GetUserLikedRequest) returns (LikedPage);
+    rpc like_music(LikeMusicReq) returns (Empty);
+    rpc get_user_liked(GetUserLikedReq) returns (LikedPage);
 }
 
 message Empty {}
 
-message LikeMusicRequest {
+message LikeMusicReq {
     int64 user_id = 1;
     int64 music_id = 2;
 }
 
-message UnlikeMusicRequest {
-    int64 user_id = 1;
-    int64 music_id = 2;
-}
-
-message GetUserLikedRequest {
+message GetUserLikedReq {
     int64 user_id = 1;
     int32 page_number = 2;
     int32 page_size = 3;

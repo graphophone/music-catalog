@@ -27,6 +27,7 @@ pub trait MusicDb {
         music_id: i64,
         new_status: &str,
     ) -> Result<(), sqlx::Error>;
+    async fn set_raw_audio(&self, music_id: i64, raw_audio_id: &str) -> Result<(), sqlx::Error>;
 }
 
 impl MusicDb for CatalogDb {
@@ -215,6 +216,26 @@ impl MusicDb for CatalogDb {
             WHERE id = $1;",
             music_id,
             new_status,
+        )
+        .execute(&self.pool)
+        .await?;
+
+        if res.rows_affected() == 0 {
+            return Err(sqlx::Error::RowNotFound);
+        }
+
+        Ok(())
+    }
+
+    async fn set_raw_audio(&self, music_id: i64, raw_audio_id: &str) -> Result<(), sqlx::Error> {
+        let res = sqlx::query!(
+            r"
+            UPDATE music SET
+                upload_status = 'waiting_for_processing',
+                raw_audio_id = $2
+            WHERE id = $1 AND raw_audio_id IS NULL;",
+            music_id,
+            raw_audio_id
         )
         .execute(&self.pool)
         .await?;

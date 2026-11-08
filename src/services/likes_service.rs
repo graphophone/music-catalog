@@ -3,8 +3,7 @@ use std::sync::Arc;
 use crate::{
     database::{CatalogDb, likes::LikesDb},
     services::likes_service::likes::{
-        Empty, GetUserLikedRequest, LikeMusicRequest, LikedMusic, LikedPage, UnlikeMusicRequest,
-        likes_server::Likes,
+        Empty, GetUserLikedReq, LikeMusicReq, LikedMusic, LikedPage, likes_server::Likes,
     },
 };
 use tonic::{Request, Response, Status, async_trait};
@@ -25,7 +24,7 @@ impl LikesService {
 
 #[async_trait]
 impl Likes for LikesService {
-    async fn like_music(&self, req: Request<LikeMusicRequest>) -> Result<Response<Empty>, Status> {
+    async fn like_music(&self, req: Request<LikeMusicReq>) -> Result<Response<Empty>, Status> {
         let req = req.into_inner();
         let res = self.catalog_db.like_music(req.user_id, req.music_id).await;
         match res {
@@ -34,24 +33,9 @@ impl Likes for LikesService {
         }
     }
 
-    async fn unlike_music(
-        &self,
-        req: Request<UnlikeMusicRequest>,
-    ) -> Result<Response<Empty>, Status> {
-        let req = req.into_inner();
-        let res = self
-            .catalog_db
-            .unlike_music(req.user_id, req.music_id)
-            .await;
-        match res {
-            Ok(_) => Ok(Response::new(Empty {})),
-            Err(e) => Err(Status::from_error(Box::new(e))),
-        }
-    }
-
     async fn get_user_liked(
         &self,
-        req: Request<GetUserLikedRequest>,
+        req: Request<GetUserLikedReq>,
     ) -> Result<Response<LikedPage>, Status> {
         let req = req.into_inner();
         let liked_music =

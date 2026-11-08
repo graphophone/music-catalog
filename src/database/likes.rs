@@ -2,7 +2,6 @@ use crate::database::CatalogDb;
 
 pub trait LikesDb {
     async fn like_music(&self, user_id: i64, music_id: i64) -> Result<(), sqlx::Error>;
-    async fn unlike_music(&self, user_id: i64, music_id: i64) -> Result<(), sqlx::Error>;
     async fn get_liked_music_for_user(
         &self,
         user_id: i64,
@@ -15,18 +14,16 @@ pub trait LikesDb {
 impl LikesDb for CatalogDb {
     async fn like_music(&self, user_id: i64, music_id: i64) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "INSERT INTO music_likes (user_id, music_id) VALUES ($1, $2);",
-            user_id,
-            music_id
-        )
-        .execute(&self.pool)
-        .await?;
-        Ok(())
-    }
-
-    async fn unlike_music(&self, user_id: i64, music_id: i64) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            "DELETE FROM music_likes WHERE user_id = $1 AND music_id = $2;",
+            r"
+            WITH deleted AS (
+                DELETE FROM music_likes
+                WHERE user_id = $1 AND music_id = $2
+                RETURNING 1
+            )
+            INSERT INTO music_likes (user_id, music_id)
+            SELECT $1::bigint, $2::bigint
+            WHERE NOT EXISTS (SELECT 1 FROM deleted)
+            ON CONFLICT (user_id, music_id) DO NOTHING",
             user_id,
             music_id
         )
@@ -115,7 +112,7 @@ mod tests {
         };
         let music_id = db.save_music(&music_data1).await?;
         db.like_music(1, music_id).await?;
-        db.unlike_music(1, music_id).await?;
+        db.like_music(1, music_id).await?;
         Ok(())
     }
 
@@ -222,7 +219,7 @@ mod tests {
         db.like_music(1, music1_id).await?;
         let count = db.get_liked_music_count_for_user(1).await?;
         assert_eq!(count, 1);
-        db.unlike_music(1, music1_id).await?;
+        db.like_music(1, music1_id).await?;
         let count = db.get_liked_music_count_for_user(1).await?;
         assert_eq!(count, 0);
         Ok(())

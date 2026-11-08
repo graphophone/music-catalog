@@ -307,9 +307,9 @@ impl Music for MusicService {
         let req = req.into_inner();
 
         self.catalog_db
-            .update_upload_status(req.music_id, "waiting_for_processing")
+            .set_raw_audio(req.music_id, &req.asset_id)
             .await
-            .map_err(|_| Status::internal("failed to update upload status"))?;
+            .map_err(|_| Status::internal("failed to set raw audio"))?;
 
         self.audio_processing_queue
             .send_audio_processing_request(req.music_id, &req.asset_id)
