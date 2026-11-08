@@ -14,7 +14,7 @@ service Music {
     rpc NotifyUploadMusicAudio(NotifyUploadAssetReq) returns (Empty);
     rpc RemoveMusic(RemoveMusicReq) returns (Empty);
     rpc LinkMusicAudio(LinkMusicAudioReq) returns (Empty);
-    rpc GeneratePlayToken(MusicId) returns (PlayToken);
+    rpc RequestMusicPlay(MusicId) returns (MusicPlayResponse);
 }
 
 message Empty {}
@@ -63,7 +63,7 @@ message RemoveMusicReq {
 
 message LinkMusicAudioReq {
     int64 music_id = 1;
-    string audio_uri = 2;
+    string audio_id = 2;
     int64 duration_seconds = 3;
 }
 
@@ -85,8 +85,8 @@ message MusicId {
     int64 id = 1;
 }
 
-message PlayToken {
-    string play_token = 1;
+message MusicPlayResponse {
+    string hls_master_id = 1;
 }
 
 message Category {

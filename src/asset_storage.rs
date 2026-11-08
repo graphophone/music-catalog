@@ -3,7 +3,12 @@ use std::time::Duration;
 use crate::config;
 use anyhow::Result;
 use aws_config::{BehaviorVersion, Region};
-use aws_sdk_s3::{Client, Config, config::Credentials, presigning::PresigningConfig};
+use aws_sdk_s3::{
+    Client, Config,
+    config::Credentials,
+    presigning::PresigningConfig,
+    types::{self, ObjectIdentifier},
+};
 use uuid::Uuid;
 
 pub struct AssetStorage {
@@ -81,6 +86,55 @@ impl AssetStorage {
             .key(id)
             .send()
             .await?;
+        Ok(())
+    }
+
+    pub async fn remove_objects_with_prefix(&self, prefix: String) -> Result<()> {
+        let mut continuation_token = None;
+
+        loop {
+            let res = self
+                .client
+                .list_objects_v2()
+                .bucket(&self.bucket)
+                .prefix(&prefix)
+                .set_continuation_token(continuation_token.take())
+                .send()
+                .await?;
+
+            let objects = res
+                .contents()
+                .iter()
+                .filter_map(|obj| obj.key())
+                .map(|key| ObjectIdentifier::builder().key(key).build())
+                .collect::<Result<Vec<ObjectIdentifier>, _>>()?;
+
+            if !objects.is_empty() {
+                let delete = types::Delete::builder()
+                    .set_objects(Some(objects))
+                    .quiet(true)
+                    .build()?;
+
+                let out = self
+                    .client
+                    .delete_objects()
+                    .bucket(&self.bucket)
+                    .delete(delete)
+                    .send()
+                    .await?;
+
+                if !out.errors().is_empty() {
+                    anyhow::bail!("failed to delete some objects: {:?}", out.errors());
+                }
+
+                if res.is_truncated().unwrap_or(false) {
+                    continuation_token = res.next_continuation_token().map(String::from);
+                } else {
+                    break;
+                }
+            }
+        }
+
         Ok(())
     }
 

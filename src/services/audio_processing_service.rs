@@ -66,7 +66,7 @@ impl AudioProcessing for AudioProcessingService {
             .link_music_audio(
                 req.music_id,
                 &LinkAudio {
-                    audio_uri: req.hls_id,
+                    audio_id: req.hls_id,
                     duration_seconds: req.duration_seconds,
                 },
             )

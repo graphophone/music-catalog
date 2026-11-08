@@ -16,7 +16,11 @@ pub trait MusicDb {
         thumbnail_id: Option<String>,
     ) -> Result<Option<String>, sqlx::Error>;
     async fn remove_music(&self, music_id: i64) -> Result<MusicAssets, sqlx::Error>;
-    async fn link_music_audio(&self, music_id: i64, data: &LinkAudio) -> Result<(), sqlx::Error>;
+    async fn link_music_audio(
+        &self,
+        music_id: i64,
+        data: &LinkAudio,
+    ) -> Result<Option<String>, sqlx::Error>;
     async fn register_play(&self, music_id: i64) -> Result<String, sqlx::Error>;
     async fn update_upload_status(
         &self,
@@ -30,30 +34,23 @@ impl MusicDb for CatalogDb {
         let mut tx = self.pool.begin().await?;
 
         let music = sqlx::query!(
-            r"
+            r#"
             SELECT
-                id,
-                title,
-                description,
-                thumbnail_id,
-                duration_seconds,
-                play_count,
-                COUNT(user_id) like_count,
-                upload_status,
-                uploader_id,
-                created_at
+                T.id,
+                T.title,
+                T.description,
+                T.thumbnail_id,
+                T.duration_seconds,
+                T.play_count,
+                COUNT(ML.user_id) "like_count!",
+                T.upload_status,
+                T.uploader_id,
+                T.created_at
             FROM music T
-            LEFT JOIN music_likes TL
-            ON T.id = TL.music_id
+            LEFT JOIN music_likes ML
+            ON T.id = ML.music_id
             WHERE T.id = $1
-            GROUP BY id,
-                title,
-                description,
-                thumbnail_id,
-                duration_seconds,
-                play_count,
-                uploader_id,
-                upload_status;",
+            GROUP BY T.id;"#,
             music_id,
         )
         .fetch_one(&mut *tx)
@@ -71,7 +68,7 @@ impl MusicDb for CatalogDb {
             thumbnail_id: music.thumbnail_id,
             duration_seconds: music.duration_seconds,
             play_count: music.play_count,
-            like_count: music.like_count.unwrap_or_default(),
+            like_count: music.like_count,
             uploader_id: music.uploader_id,
             categories: music_categories,
             upload_status: music.upload_status,
@@ -150,15 +147,9 @@ impl MusicDb for CatalogDb {
     async fn remove_music(&self, music_id: i64) -> Result<MusicAssets, sqlx::Error> {
         let res = sqlx::query!(
             r"
-            WITH ctx AS (
-                DELETE FROM music
-                WHERE id = $1
-                RETURNING id, thumbnail_id
-            )
-            SELECT thumbnail_id, audio_uri
-            FROM music_audio
-            RIGHT JOIN ctx
-            ON music_id = id",
+            DELETE FROM music
+            WHERE id = $1
+            RETURNING id, thumbnail_id, audio_id, raw_audio_id;",
             music_id,
         )
         .fetch_optional(&self.pool)
@@ -166,63 +157,49 @@ impl MusicDb for CatalogDb {
         if let Some(rec) = res {
             return Ok(MusicAssets {
                 thumbnail_id: rec.thumbnail_id,
-                audio_uri: rec.audio_uri,
+                audio_id: rec.audio_id,
+                raw_audio_id: rec.raw_audio_id,
             });
         } else {
             return Err(sqlx::Error::RowNotFound);
         }
     }
 
-    async fn link_music_audio(&self, music_id: i64, data: &LinkAudio) -> Result<(), sqlx::Error> {
-        let mut tx = self.pool.begin().await?;
-
-        let res1 = sqlx::query!(
+    async fn link_music_audio(
+        &self,
+        music_id: i64,
+        data: &LinkAudio,
+    ) -> Result<Option<String>, sqlx::Error> {
+        sqlx::query_scalar!(
             r"
-            WITH ctx AS (
-                SELECT id
-                FROM music
-                WHERE id = $1
-            )
-            INSERT INTO music_audio (music_id, audio_uri, duration_seconds)
-            SELECT id, $2, $3
-            FROM ctx",
+            UPDATE music SET
+                audio_id = $2,
+                duration_seconds = $3,
+                upload_status = 'uploaded',
+                raw_audio_id = NULL
+            WHERE id = $1
+            RETURNING OLD.raw_audio_id",
             music_id,
-            &data.audio_uri,
+            &data.audio_id,
             data.duration_seconds,
         )
-        .execute(&mut *tx)
-        .await?;
-
-        if res1.rows_affected() == 0 {
-            return Err(sqlx::Error::RowNotFound);
-        }
-
-        sqlx::query!(
-            r"
-            UPDATE music SET upload_status = 'uploaded'
-            WHERE id = $1;",
-            music_id,
-        )
-        .execute(&mut *tx)
-        .await?;
-
-        tx.commit().await?;
-        Ok(())
+        .fetch_one(&self.pool)
+        .await
     }
 
     async fn register_play(&self, music_id: i64) -> Result<String, sqlx::Error> {
-        let audio_uri = sqlx::query_scalar!(
+        let audio_id = sqlx::query_scalar!(
             r"
             UPDATE music SET play_count = play_count + 1
-            FROM music_audio
-            WHERE id = $1 AND music_id = id
-            RETURNING audio_uri;",
+            WHERE id = $1
+            RETURNING audio_id;",
             music_id,
         )
-        .fetch_optional(&self.pool)
+        .fetch_one(&self.pool)
         .await?;
-        match audio_uri {
-            Some(uri) => Ok(uri),
+
+        match audio_id {
+            Some(v) => Ok(v),
             None => Err(sqlx::Error::RowNotFound),
         }
     }
@@ -282,7 +259,8 @@ pub struct FullMusic {
 
 pub struct MusicAssets {
     pub thumbnail_id: Option<String>,
-    pub audio_uri: Option<String>,
+    pub audio_id: Option<String>,
+    pub raw_audio_id: Option<String>,
 }
 
 pub struct UploadMusic {
@@ -299,7 +277,7 @@ pub struct UpdateMusic {
 }
 
 pub struct LinkAudio {
-    pub audio_uri: String,
+    pub audio_id: String,
     pub duration_seconds: i64,
 }
 
@@ -433,7 +411,7 @@ mod tests {
             categories_ids: vec![],
         };
         let audio_ = LinkAudio {
-            audio_uri: "some uri".to_string(),
+            audio_id: "some uri".to_string(),
             duration_seconds: 123,
         };
 
@@ -470,15 +448,15 @@ mod tests {
             categories_ids: vec![],
         };
         let audio_ = LinkAudio {
-            audio_uri: "some uri".to_string(),
+            audio_id: "some uri".to_string(),
             duration_seconds: 123,
         };
 
         let id1 = db.save_music(&music_data1).await?;
         db.link_music_audio(id1, &audio_).await?;
-        let audio_uri = db.register_play(id1).await?;
+        let audio_id = db.register_play(id1).await?;
 
-        assert_eq!(audio_uri, audio_.audio_uri);
+        assert_eq!(audio_id, audio_.audio_id);
         Ok(())
     }
 

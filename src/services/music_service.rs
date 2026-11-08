@@ -200,22 +200,29 @@ impl Music for MusicService {
             Err(e) => return Err(Status::from_error(Box::new(e))),
         };
 
-        match assets.thumbnail_id {
-            Some(thumbnail_id) => {
-                let thumbnail_storage = Arc::clone(&self.thumbnail_storage);
-                tokio::spawn(async move {
-                    let thumbnail_id = thumbnail_id;
-                    let _ = thumbnail_storage.remove_asset(&thumbnail_id).await;
-                });
-            }
-            None => (),
-        };
+        if let Some(thumbnail_id) = assets.thumbnail_id {
+            let thumbnail_storage = Arc::clone(&self.thumbnail_storage);
+            tokio::spawn(async move {
+                let thumbnail_id = thumbnail_id;
+                let _ = thumbnail_storage.remove_asset(&thumbnail_id).await;
+            });
+        }
 
-        match assets.audio_uri {
-            Some(_) => {
-                // send remove request to music storage
-            }
-            None => (),
+        if let Some(raw_audio_id) = assets.raw_audio_id {
+            let raw_audio_storage = Arc::clone(&self.raw_audio_storage);
+            tokio::spawn(async move {
+                let raw_audio_id = raw_audio_id;
+                let _ = raw_audio_storage.remove_asset(&raw_audio_id).await;
+            });
+        }
+
+        if let Some(_) = assets.audio_id {
+            let hls_storage = Arc::clone(&self.hls_audio_storage);
+            tokio::spawn(async move {
+                let _ = hls_storage
+                    .remove_objects_with_prefix(format!("{}/", req.music_id))
+                    .await;
+            });
         };
 
         Ok(Response::new(Empty {}))
@@ -228,34 +235,44 @@ impl Music for MusicService {
         let req = req.into_inner();
 
         let link = database::music::LinkAudio {
-            audio_uri: req.audio_uri,
+            audio_id: req.audio_id,
             duration_seconds: req.duration_seconds,
         };
         let query_res = self.catalog_db.link_music_audio(req.music_id, &link).await;
 
-        match query_res {
-            Ok(_) => Ok(Response::new(Empty {})),
-            Err(sqlx::Error::RowNotFound) => Err(Status::not_found("music not found")),
-            Err(e) => Err(Status::from_error(Box::new(e))),
-        }
-    }
-
-    async fn generate_play_token(
-        &self,
-        req: Request<MusicId>,
-    ) -> Result<Response<PlayToken>, Status> {
-        let req = req.into_inner();
-
-        let query_res = self.catalog_db.register_play(req.id).await;
-
-        let audio_uri = match query_res {
+        let raw_audio_id = match query_res {
             Ok(v) => v,
             Err(sqlx::Error::RowNotFound) => return Err(Status::not_found("music not found")),
             Err(e) => return Err(Status::from_error(Box::new(e))),
         };
 
-        Ok(Response::new(PlayToken {
-            play_token: audio_uri,
+        if let Some(raw_audio_id) = raw_audio_id {
+            let raw_audio_storage = Arc::clone(&self.raw_audio_storage);
+            tokio::spawn(async move {
+                let raw_audio_id = raw_audio_id;
+                let _ = raw_audio_storage.remove_asset(&raw_audio_id).await;
+            });
+        }
+
+        Ok(Response::new(Empty {}))
+    }
+
+    async fn request_music_play(
+        &self,
+        req: Request<MusicId>,
+    ) -> Result<Response<MusicPlayResponse>, Status> {
+        let req = req.into_inner();
+
+        let query_res = self.catalog_db.register_play(req.id).await;
+
+        let hls_id = match query_res {
+            Ok(v) => v,
+            Err(sqlx::Error::RowNotFound) => return Err(Status::not_found("music not found")),
+            Err(e) => return Err(Status::from_error(Box::new(e))),
+        };
+
+        Ok(Response::new(MusicPlayResponse {
+            hls_master_id: hls_id,
         }))
     }
 

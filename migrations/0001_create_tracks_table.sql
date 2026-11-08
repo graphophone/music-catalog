@@ -3,10 +3,12 @@ CREATE TABLE IF NOT EXISTS music (
     title TEXT NOT NULL,
     description TEXT,
     thumbnail_id TEXT,
-    duration_seconds BIGINT,
     play_count BIGINT NOT NULL DEFAULT 0,
     uploader_id BIGINT NOT NULL,
     upload_status VARCHAR(30) NOT NULL DEFAULT 'audio_not_uploaded',
+    audio_id TEXT,
+    duration_seconds BIGINT,
+    raw_audio_id TEXT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
@@ -40,10 +42,4 @@ CREATE TABLE IF NOT EXISTS music_likes (
     user_id BIGINT NOT NULL,
     music_id BIGINT REFERENCES music (id) ON DELETE CASCADE,
     UNIQUE (user_id, music_id)
-);
-
-CREATE TABLE IF NOT EXISTS music_audio (
-    music_id BIGINT UNIQUE REFERENCES music(id) ON DELETE CASCADE,
-    audio_uri TEXT NOT NULL,
-    duration_seconds BIGINT NOT NULL
 );

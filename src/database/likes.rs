@@ -45,12 +45,10 @@ impl LikesDb for CatalogDb {
         let liked_music: Vec<LikedMusic> = sqlx::query_as!(
             LikedMusic,
             r"
-                SELECT T.id, T.title, T.thumbnail_id, TA.duration_seconds, T.play_count
+                SELECT T.id, T.title, T.thumbnail_id, T.duration_seconds, T.play_count
                 FROM music_likes TL
                 JOIN music T
                 ON TL.music_id = T.id
-                JOIN music_audio TA
-                ON T.id = TA.music_id
                 WHERE TL.user_id = $1
                 ORDER BY created_at DESC
                 LIMIT $2 OFFSET $3;
