@@ -4,7 +4,7 @@ package music;
 
 service Music {
     rpc CheckUploader(CheckUploaderReq) returns (Empty);
-    rpc GetFullMusic(MusicId) returns (FullMusic);
+    rpc GetFullMusic(FullMusicReq) returns (FullMusic);
     rpc UploadMusic(UploadMusicReq) returns (MusicId);
     rpc UpdateMusic(UpdateMusicReq) returns (Empty);
     rpc UploadThumbnail(UploadAssetReq) returns (UploadAssetRes);
@@ -79,6 +79,12 @@ message FullMusic {
     repeated Category categories = 9;
     string upload_status = 10;
     int64 created_at = 11;
+    bool is_liked = 12;
+}
+
+message FullMusicReq {
+    int64 music_id = 1;
+    optional int64 user_id = 2;
 }
 
 message MusicId {

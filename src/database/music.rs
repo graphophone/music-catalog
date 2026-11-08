@@ -7,7 +7,11 @@ use crate::database::{
 
 pub trait MusicDb {
     async fn check_uploader(&self, music_id: i64, uploader_id: i64) -> sqlx::Result<()>;
-    async fn get_full_music(&self, music_id: i64) -> Result<FullMusic, sqlx::Error>;
+    async fn get_full_music(
+        &self,
+        music_id: i64,
+        user_id: Option<i64>,
+    ) -> Result<FullMusic, sqlx::Error>;
     async fn save_music(&self, music: &UploadMusic) -> Result<i64, sqlx::Error>;
     async fn update_music(&self, music_id: i64, data: &UpdateMusic) -> Result<(), sqlx::Error>;
     async fn update_thumbnail(
@@ -31,7 +35,11 @@ pub trait MusicDb {
 }
 
 impl MusicDb for CatalogDb {
-    async fn get_full_music(&self, music_id: i64) -> Result<FullMusic, sqlx::Error> {
+    async fn get_full_music(
+        &self,
+        music_id: i64,
+        user_id: Option<i64>,
+    ) -> Result<FullMusic, sqlx::Error> {
         let mut tx = self.pool.begin().await?;
 
         let music = sqlx::query!(
@@ -43,16 +51,18 @@ impl MusicDb for CatalogDb {
                 T.thumbnail_id,
                 T.duration_seconds,
                 T.play_count,
-                COUNT(ML.user_id) "like_count!",
+                COUNT(ML.user_id) AS "like_count!",
+                COALESCE(BOOL_OR(ML.user_id = $2), FALSE) AS "is_liked!",
                 T.upload_status,
                 T.uploader_id,
                 T.created_at
             FROM music T
             LEFT JOIN music_likes ML
-            ON T.id = ML.music_id
+                ON T.id = ML.music_id
             WHERE T.id = $1
             GROUP BY T.id;"#,
             music_id,
+            user_id,
         )
         .fetch_one(&mut *tx)
         .await?;
@@ -74,6 +84,7 @@ impl MusicDb for CatalogDb {
             categories: music_categories,
             upload_status: music.upload_status,
             created_at: music.created_at,
+            is_liked: music.is_liked,
         };
         Ok(res)
     }
@@ -273,6 +284,7 @@ pub struct FullMusic {
     pub play_count: i64,
     pub like_count: i64,
     pub uploader_id: i64,
+    pub is_liked: bool,
     pub categories: Vec<CategoryData>,
     pub upload_status: String,
     pub created_at: time::OffsetDateTime,
@@ -337,7 +349,7 @@ mod tests {
         };
 
         let id1 = db.save_music(&music_data1).await?;
-        let full_data = db.get_full_music(id1).await?;
+        let full_data = db.get_full_music(id1, None).await?;
 
         assert_eq!(
             full_data,
@@ -353,6 +365,7 @@ mod tests {
                 categories: vec![],
                 upload_status: "audio not uploaded".to_string(),
                 created_at: full_data.created_at,
+                is_liked: false,
             }
         );
         Ok(())
@@ -381,7 +394,7 @@ mod tests {
         let id1 = db.save_music(&music_data1).await?;
         db.update_music(id1, &update_music1).await?;
         db.update_thumbnail(id1, Some("test".to_string())).await?;
-        let full_data = db.get_full_music(id1).await?;
+        let full_data = db.get_full_music(id1, None).await?;
 
         assert_eq!(
             full_data,
@@ -397,6 +410,7 @@ mod tests {
                 categories: vec![c2, c4],
                 upload_status: "audio not uploaded".to_string(),
                 created_at: full_data.created_at,
+                is_liked: false,
             }
         );
         Ok(())
@@ -414,7 +428,7 @@ mod tests {
 
         let id1 = db.save_music(&music_data1).await?;
         db.remove_music(id1).await?;
-        let full_data = db.get_full_music(id1).await;
+        let full_data = db.get_full_music(id1, None).await;
 
         match full_data {
             Ok(_) => panic!("music was not deleted"),
@@ -438,7 +452,7 @@ mod tests {
 
         let id1 = db.save_music(&music_data1).await?;
         db.link_music_audio(id1, &audio_).await?;
-        let full_data = db.get_full_music(id1).await?;
+        let full_data = db.get_full_music(id1, None).await?;
 
         assert_eq!(
             full_data,
@@ -454,6 +468,7 @@ mod tests {
                 categories: vec![],
                 upload_status: "audio not uploaded".to_string(),
                 created_at: full_data.created_at,
+                is_liked: false,
             }
         );
         Ok(())

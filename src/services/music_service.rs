@@ -50,16 +50,29 @@ impl MusicService {
 
 #[tonic::async_trait]
 impl Music for MusicService {
-    async fn get_full_music(&self, req: Request<MusicId>) -> Result<Response<FullMusic>, Status> {
+    async fn get_full_music(
+        &self,
+        req: Request<FullMusicReq>,
+    ) -> Result<Response<FullMusic>, Status> {
         let req = req.into_inner();
 
-        let query_res = self.catalog_db.get_full_music(req.id).await;
+        let query_res = self
+            .catalog_db
+            .get_full_music(req.music_id, req.user_id)
+            .await;
 
         let music = match query_res {
             Ok(v) => v,
             Err(sqlx::Error::RowNotFound) => return Err(Status::not_found("music not found")),
             Err(e) => return Err(Status::from_error(Box::new(e))),
         };
+
+        tracing::warn!(
+            "is liked (user {:?}, music {}): {}",
+            req.user_id,
+            req.music_id,
+            music.is_liked
+        );
 
         let res = FullMusic {
             id: music.id,
@@ -82,6 +95,7 @@ impl Music for MusicService {
                 .collect(),
             upload_status: music.upload_status,
             created_at: music.created_at.unix_timestamp(),
+            is_liked: music.is_liked,
         };
 
         Ok(Response::new(res))

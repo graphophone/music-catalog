@@ -278,7 +278,7 @@ mod tests {
         CatalogDb::link_music_categories_with_transaction(&mut tx, t_id, &new_cats_ids).await?;
         tx.commit().await?;
 
-        let music_data = db.get_full_music(t_id).await?;
+        let music_data = db.get_full_music(t_id, None).await?;
         let mut categories = music_data.categories;
         categories.sort_by_key(|c| c.id);
         let mut expected_cats = vec![c1, c2, c3];
@@ -311,7 +311,7 @@ mod tests {
 
         tx.commit().await?;
 
-        let music_data = db.get_full_music(t_id).await?;
+        let music_data = db.get_full_music(t_id, None).await?;
         let mut categories = music_data.categories;
         categories.sort_by_key(|c| c.id);
         let mut expected_cats = vec![c1, c3];
