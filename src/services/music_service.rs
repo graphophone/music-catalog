@@ -16,6 +16,8 @@ pub mod music {
     tonic::include_proto!("music");
 }
 
+const ALLOWED_AUDIO_TYPES: [&'static str; 3] = ["audio/mpeg", "audio/wav", "audio/flac"];
+
 pub struct MusicService {
     catalog_db: Arc<CatalogDb>,
     thumbnail_storage: Arc<AssetStorage>,
@@ -281,6 +283,10 @@ impl Music for MusicService {
         req: Request<UploadAssetReq>,
     ) -> Result<Response<UploadAssetRes>, Status> {
         let req = req.into_inner();
+
+        if !ALLOWED_AUDIO_TYPES.contains(&req.mime_type.as_ref()) {
+            return Err(Status::invalid_argument("Invalid file type"));
+        }
 
         let (upload_url, id) = self
             .raw_audio_storage
